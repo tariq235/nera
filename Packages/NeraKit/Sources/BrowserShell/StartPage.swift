@@ -56,8 +56,9 @@ struct StartPage: View {
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
-                    // Darker than `.secondary`, which falls below readable contrast on the translucent background.
-                    .foregroundStyle(.primary.opacity(0.7))
+                    // Full contrast: `.secondary` (and even 70% opacity) fails Xcode's contrast audit on the
+                    // translucent background. The smaller size keeps it below the greeting.
+                    .foregroundStyle(.primary)
             }
         }
     }

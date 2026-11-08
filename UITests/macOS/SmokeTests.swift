@@ -32,19 +32,23 @@ final class SmokeTests: XCTestCase {
             .firstMatch
     }
 
-    /// Opens Settings (⌘,) on a tab, whichever tab it remembered last.
-    /// Falls back to the app menu when ⌘, doesn't reach the app (happens on CI virtual machines).
+    /// Opens Settings (⌘,) on a section, whichever section it remembered last. Depending on the macOS version the
+    /// sections are toolbar buttons or rows in a sidebar list.
     private func openSettingsTab(_ label: String) {
         app.activate()
         app.typeKey(",", modifierFlags: .command)
-        var tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
-        if !tab.waitForExistence(timeout: 5) {
-            app.menuBars.menuBarItems["Nera"].click()
-            app.menuBars.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'Settings'")).firstMatch.click()
-            tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
+        let window = app.windows.matching(NSPredicate(format: "identifier BEGINSWITH 'com_apple_SwiftUI_Settings_window'"))
+        let section = NSPredicate(format: "label == %@ OR value == %@", label, label)
+        let candidates = [
+            app.toolbars.buttons[label], app.buttons[label], window.staticTexts.matching(section).firstMatch,
+        ]
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, !candidates.contains(where: \.exists) {
+            _ = candidates[0].waitForExistence(timeout: 0.5)
         }
-        XCTAssertTrue(tab.waitForExistence(timeout: 10), "Settings didn't open")
-        tab.click()
+        let tab = candidates.first(where: \.exists)
+        XCTAssertNotNil(tab, "Settings didn't open")
+        tab?.click()
     }
 
     private func openViaCommandBar(_ text: String) {
