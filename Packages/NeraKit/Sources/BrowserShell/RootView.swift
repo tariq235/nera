@@ -16,6 +16,16 @@ public struct RootView: View {
     @Bindable var model: AppModel
     #if os(macOS)
         @Environment(\.openWindow) private var openWindow
+        /// Follows `model.isSidebarVisible` with an animation: whether the sidebar is on screen.
+        @State private var sidebarShown = true
+        /// Whether the page has its narrow size beside the sidebar (set once the sidebar has slid in).
+        @State private var pageBesideSidebar = true
+        /// The sidebar's width, set by dragging its edge; kept per Mac, like other window layout.
+        @AppStorage("sidebarWidth") private var storedSidebarWidth = Double(Self.defaultSidebarWidth)
+        /// The width when a drag on the sidebar's edge began.
+        @State private var dragStartWidth: CGFloat?
+
+        private var sidebarWidth: CGFloat { min(max(storedSidebarWidth, Self.sidebarWidths.lowerBound), Self.sidebarWidths.upperBound) }
     #endif
 
     /// Creates the window content.
@@ -92,10 +102,49 @@ public struct RootView: View {
     static let pageInset: CGFloat = 10
     /// The page's corner radius.
     static let pageRadius: CGFloat = 12
+    /// The sidebar's width range when dragging its edge, and its width until then.
+    static let sidebarWidths: ClosedRange<CGFloat> = 200...420
+    static let defaultSidebarWidth: CGFloat = 260
+    /// Showing and hiding the sidebar: one motion for the sidebar and the page, without overshoot (a bounce would
+    /// open a gap beside the page).
+    static let sidebarMotion = Animation.spring(response: 0.34, dampingFraction: 1)
 
     private var isEditingSpace: Binding<Bool> {
         Binding(get: { model.editingSpaceID != nil }, set: { if !$0, model.editingSpaceID != nil { model.endEditingSpace(keep: true) } })
     }
+
+    #if os(macOS)
+        /// The sidebar's edge: drag it to make the sidebar wider or narrower (the page follows as it goes).
+        private var resizeHandle: some View {
+            Color.clear
+                .frame(width: 8)
+                .contentShape(Rectangle())
+                .onHover { inside in inside ? NSCursor.resizeLeftRight.push() : NSCursor.pop() }
+                .gesture(
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                        .onChanged { drag in
+                            let start = dragStartWidth ?? sidebarWidth
+                            dragStartWidth = start
+                            let width = min(
+                                max(start + drag.translation.width, Self.sidebarWidths.lowerBound), Self.sidebarWidths.upperBound)
+                            var still = Transaction()
+                            still.disablesAnimations = true
+                            withTransaction(still) { storedSidebarWidth = Double(width.rounded()) }
+                        }
+                        .onEnded { _ in dragStartWidth = nil }
+                )
+                .offset(x: sidebarWidth - 4)
+                // VoiceOver and keyboard users adjust the same width in steps.
+                .accessibilityElement()
+                .accessibilityLabel("Sidebar width")
+                .accessibilityValue("\(Int(sidebarWidth)) points")
+                .accessibilityAdjustableAction { direction in
+                    let step: CGFloat = direction == .increment ? 20 : direction == .decrement ? -20 : 0
+                    storedSidebarWidth = Double(min(max(sidebarWidth + step, Self.sidebarWidths.lowerBound), Self.sidebarWidths.upperBound))
+                }
+                .accessibilityIdentifier("sidebar.resizeHandle")
+        }
+    #endif
 
     private var sidebar: some View {
         VStack(spacing: 0) {
@@ -113,7 +162,7 @@ public struct RootView: View {
         @ViewBuilder private var peekingSidebar: some View {
             if model.isSidebarPeeking {
                 sidebar
-                    .frame(width: 260)
+                    .frame(width: sidebarWidth)
                     .padding(.top, 4)
                     .background(Theme.background(for: model.state.selectedSpace?.theme))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -145,19 +194,43 @@ public struct RootView: View {
 
     @ViewBuilder private var layout: some View {
         #if os(macOS)
-            // The sidebar slides over the window's left side; the page sits beside it, or fills the window inside a
-            // thin frame when the sidebar is hidden. The page takes its new size in one step (no animation): every
-            // size change makes the engine lay the page out again, and an animated one would do that every frame.
+            // ⌘S: the sidebar and the page move as one. Showing it, the sidebar slides in from the left and pushes
+            // the page over; hiding it, both slide left and the page fills the window inside a thin frame.
+            // During the slide the page keeps its wide size (what passes the window's edge is clipped, so no gap
+            // opens beside it) and is moved by an offset, which the GPU composites at full frame rate; it takes its
+            // narrow size once the sidebar is in. So the engine lays the page out once per toggle, not per frame.
             ZStack(alignment: .leading) {
                 page
-                    .padding(.leading, model.isSidebarVisible ? 260 : Self.pageInset)
+                    .padding(.leading, pageBesideSidebar ? sidebarWidth : Self.pageInset)
                     .padding([.top, .bottom, .trailing], Self.pageInset)
-                    .transaction(value: model.isSidebarVisible) { $0.animation = nil }
-                if model.isSidebarVisible {
-                    sidebar
-                        .frame(width: 260)
-                        .transition(.move(edge: .leading).combined(with: .opacity))
+                    .offset(x: sidebarShown && !pageBesideSidebar ? sidebarWidth - Self.pageInset : 0)
+                    // Changing size or start position is never animated; only the slide is.
+                    .transaction(value: pageBesideSidebar) { $0.animation = nil }
+                // Always built, moved off-screen when hidden: showing it is then only a move, in the same motion as
+                // the page (building it on ⌘S cost the first frames, so it appeared without sliding), and it keeps its
+                // scroll position.
+                sidebar
+                    .frame(width: sidebarWidth)
+                    .offset(x: sidebarShown ? 0 : -sidebarWidth)
+                    .allowsHitTesting(sidebarShown)
+                    .accessibilityHidden(!sidebarShown)
+                if sidebarShown && pageBesideSidebar { resizeHandle }
+            }
+            .onChange(of: model.isSidebarVisible) { _, visible in
+                if visible {
+                    withAnimation(Self.sidebarMotion) {
+                        sidebarShown = true
+                    } completion: {
+                        if model.isSidebarVisible { pageBesideSidebar = true }
+                    }
+                } else {
+                    pageBesideSidebar = false  // wide, still where it was; then the slide
+                    DispatchQueue.main.async { withAnimation(Self.sidebarMotion) { sidebarShown = false } }
                 }
+            }
+            .onAppear {
+                sidebarShown = model.isSidebarVisible
+                pageBesideSidebar = model.isSidebarVisible
             }
             .overlay(alignment: .leading) { if !model.isSidebarVisible { peekingSidebar } }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
@@ -165,12 +238,11 @@ public struct RootView: View {
             .background {
                 ZStack {
                     TitleBarArea()
-                    SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? 260 : nil)
-                    WindowButtons(visible: model.isSidebarVisible || model.isSidebarPeeking)
+                    SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
+                    WindowButtons(visible: sidebarShown || model.isSidebarPeeking)
                 }
             }
             .ignoresSafeArea(.container, edges: .top)  // the sidebar runs up beside the window buttons, like the title bar
-            .animation(.spring(response: 0.36, dampingFraction: 0.88), value: model.isSidebarVisible)
             .animation(.spring(response: 0.3, dampingFraction: 0.86), value: model.isSidebarPeeking)
         #else
             NavigationSplitView {

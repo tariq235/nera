@@ -17,3 +17,4 @@ It should feel like a Mac app, not a web app in a window.
 - [ ] **MAC-013** Notarized Developer ID build installs cleanly with Gatekeeper on a fresh Mac — P0 · owner: nera · evidence: planned: later
 - [ ] **MAC-014** Universal binary decision (arm64-only vs universal) documented — P1 · owner: maintainer · evidence: planned: later
 - [ ] **MAC-015** One running instance per library (file lock); a second launch hands off to the first instead of writing the same files — P1 · owner: nera · evidence: planned: later
+- [x] **MAC-016** Empty strips around the page act as a title bar: drag to move, double-click to zoom (System Settings choice) — P0 · owner: nera · evidence: test:NeraUITests/testSidebarEdgeResizesAndTitleStripZooms

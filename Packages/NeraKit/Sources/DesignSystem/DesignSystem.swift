@@ -244,6 +244,9 @@ struct SurfaceModifier: ViewModifier {
         final class ButtonsView: NSView {
             var isVisible = true { didSet { apply() } }
 
+            // Only sets the buttons' visibility: clicks (double-click to zoom, drag to move) go to what's below.
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
             override func viewDidMoveToWindow() {
                 super.viewDidMoveToWindow()
                 apply()
