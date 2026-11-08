@@ -184,12 +184,16 @@ public final class ExtensionStore: @unchecked Sendable {
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             try archive.write(to: zip)
-            let ditto = Process()
-            ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-            ditto.arguments = ["-x", "-k", "--noqtn", zip.path, folder.path]
-            try ditto.run()
-            ditto.waitUntilExit()
-            guard ditto.terminationStatus == 0 else { throw ExtensionInstallError.unpackFailed }
+            #if os(macOS)
+                let ditto = Process()
+                ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                ditto.arguments = ["-x", "-k", "--noqtn", zip.path, folder.path]
+                try ditto.run()
+                ditto.waitUntilExit()
+                guard ditto.terminationStatus == 0 else { throw ExtensionInstallError.unpackFailed }
+            #else
+                throw ExtensionInstallError.unpackFailed  // extensions run only in Chromium, on macOS
+            #endif
         } catch let error as ExtensionInstallError {
             throw error
         } catch {
