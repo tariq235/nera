@@ -68,15 +68,6 @@ if [ "$IDENTITY" != "-" ] && xcrun notarytool history --keychain-profile nera-no
   NOTARIZE=1
 fi
 
-# Drag-to-Applications disk image: Nera's own background, Nera on the left, Applications on the right.
-# dmgbuild (build-time only, in a local venv) writes the window layout without scripting Finder.
-DMG="$OUT/Nera.dmg"
-VENV=build/venv-dmg
-[ -x "$VENV/bin/dmgbuild" ] || { python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r scripts/release/requirements-dmg.txt; }
-ART="$OUT/art"; mkdir -p "$ART"
-swift scripts/release/dmg-background.swift "$ART" >/dev/null
-tiffutil -cathidpicheck "$ART/background.png" "$ART/background@2x.png" -out "$ART/background.tiff" >/dev/null 2>&1
-# This build's notes, as a plain text file in the disk image.
 # MPL-2.0 §3.2: whoever gets this DMG must be able to get the source. Until the public repository exists, only the
 # maintainer's own builds may skip this (ALLOW_UNPUBLISHED_SOURCE=1); never for anyone else.
 SOURCE_URL=$(/usr/libexec/PlistBuddy -c "Print NeraSourceURL" "$APP/Contents/Info.plist")
@@ -84,19 +75,10 @@ if ! curl -fsSLI -o /dev/null "$SOURCE_URL"; then
   [ "${ALLOW_UNPUBLISHED_SOURCE:-0}" = 1 ] || { echo "✘ the source link $SOURCE_URL isn't public: don't hand this DMG to anyone (ALLOW_UNPUBLISHED_SOURCE=1 for your own builds)"; exit 1; }
   echo "⚠ source link not public yet: this DMG is for the maintainer only"
 fi
-NOTES="$ART/Release Notes.txt"
-{
-  echo "Nera $VERSION (build $BUILD): release notes"
-  echo
-  awk -v pattern="$NOTES_PATTERN" '$0 ~ pattern { n++ } n == 1' "$NOTES_FILE"
-  echo
-  # MPL-2.0 §3.2: tell recipients where the source is (SourceAvailability.swift says the same).
-  echo "Source code: Nera is open source under the Mozilla Public License 2.0:"
-  echo "$SOURCE_URL"
-} > "$NOTES"
-"$VENV/bin/dmgbuild" -s scripts/release/dmg-settings.py -D app="$APP" -D background="$ART/background.tiff" -D notes="$NOTES" \
-  "Nera $VERSION" "$DMG" >/dev/null
-rm -rf "$ART"
+DMG="$OUT/Nera.dmg"
+awk -v pattern="$NOTES_PATTERN" '$0 ~ pattern { n++ } n == 1' "$NOTES_FILE" > "$OUT/notes.txt"
+./scripts/release/build-dmg.sh "$APP" "$VERSION (build $BUILD)" "$OUT/notes.txt" "$DMG"
+rm "$OUT/notes.txt"
 if [ "$IDENTITY" != "-" ]; then
   codesign --sign "$IDENTITY" --timestamp "$DMG"
   if [ "${NOTARIZE:-0}" = 1 ]; then

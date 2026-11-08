@@ -75,12 +75,21 @@ jobs:
         env:
           SAFE_BROWSING_KEY: ${{ secrets.SAFE_BROWSING_KEY }}   # restricted to the Safe Browsing API
         run: |
-          IDENTITY="-"; [ "$DRY_RUN" != "true" ] && IDENTITY="Developer ID Application"
+          # Same signing settings as scripts/release/make-dmg.sh: the identity and its team come from the certificate.
+          IDENTITY="-"; SIGNING=()
+          if [ "$DRY_RUN" != "true" ]; then
+            IDENTITY=$(security find-identity -v -p codesigning "$RELEASE_KEYCHAIN" | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+            TEAM=$(sed -E 's/.*\(([A-Z0-9]{10})\)$/\1/' <<< "$IDENTITY")
+            [ -n "$TEAM" ] || { echo "::error::no Developer ID Application identity in the release keychain"; exit 1; }
+            SIGNING=(CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="$TEAM")
+            echo "Signing as $IDENTITY"
+          fi
           xcodebuild -project Nera.xcodeproj -scheme Nera -configuration Release -destination 'platform=macOS' \
             -derivedDataPath build/release build -quiet \
             MARKETING_VERSION="${VERSION%%-*}" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            CODE_SIGN_IDENTITY="$IDENTITY" OTHER_CODE_SIGN_FLAGS="--timestamp" \
-            NERA_SAFE_BROWSING_KEY="$SAFE_BROWSING_KEY"
+            CODE_SIGN_IDENTITY="$IDENTITY" OTHER_CODE_SIGN_FLAGS="--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO \
+            NERA_SAFE_BROWSING_KEY="$SAFE_BROWSING_KEY" ${SIGNING[@]+"${SIGNING[@]}"}
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           mkdir -p build/out && ditto build/release/Build/Products/Release/Nera.app build/out/Nera.app
 
       - name: Release gates (entitlements, notices, no test hooks)
@@ -108,8 +117,11 @@ jobs:
       - name: Disk image
         run: |
           DMG="build/out/Nera-$VERSION.dmg"; echo "DMG=$DMG" >> "$GITHUB_ENV"
-          hdiutil create -volname Nera -srcfolder build/out/Nera.app -ov -format UDZO "$DMG"
-          if [ "$DRY_RUN" != "true" ]; then codesign --sign "Developer ID Application" --timestamp "$DMG"; fi
+          # This version's CHANGELOG section goes into the disk image as its release notes.
+          awk -v v="## ${VERSION} " 'index($0, v) == 1 { n = 1; next } /^## / { n = 0 } n' CHANGELOG.md > "$RUNNER_TEMP/notes.txt"
+          [ -s "$RUNNER_TEMP/notes.txt" ] || { echo "::error::CHANGELOG.md has no '## $VERSION' section"; exit 1; }
+          ./scripts/release/build-dmg.sh build/out/Nera.app "$VERSION" "$RUNNER_TEMP/notes.txt" "$DMG"
+          if [ "$DRY_RUN" != "true" ]; then codesign --sign "$SIGN_IDENTITY" --timestamp "$DMG"; fi
 
       - name: Notarize & staple the disk image
         if: env.DRY_RUN != 'true'
