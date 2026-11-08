@@ -43,6 +43,7 @@ jobs:
           fi
           echo "Release $VERSION on $CHANNEL (dry run: $DRY_RUN)"
       - name: Pinned tools (checksums verified)
+        env: { GITHUB_TOKEN: "${{ github.token }}" }   # authenticates the download fallback (rate limit)
         run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
       - name: Prepare CEF (pinned; downloaded and SHA-256 verified in this run, no cache)
         env: { NERA_CEF_VERIFY: "1" }

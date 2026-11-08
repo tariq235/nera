@@ -20,7 +20,7 @@ mkdir -p "$CACHE"
 # NERA_CEF_VERIFY=1 (releases): never trust an extracted copy; re-check the archive and extract it fresh.
 if [ "${NERA_CEF_VERIFY:-0}" = 1 ]; then rm -rf "${CACHE:?}/$NAME"; fi
 if [ ! -d "$CACHE/$NAME" ]; then
-  [ -f "$ARCHIVE" ] || curl -fL --retry 3 -o "$ARCHIVE.part" "$URL" && { [ -f "$ARCHIVE" ] || mv "$ARCHIVE.part" "$ARCHIVE"; }
+  [ -f "$ARCHIVE" ] || curl -fL --retry 5 --retry-delay 10 --retry-connrefused -o "$ARCHIVE.part" "$URL" && { [ -f "$ARCHIVE" ] || mv "$ARCHIVE.part" "$ARCHIVE"; }
   GOT1=$(shasum -a 1 "$ARCHIVE" | cut -d' ' -f1)
   GOT256=$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1)
   [ "$GOT1" = "$CEF_SHA1" ] || { echo "✘ SHA-1 mismatch: $GOT1" >&2; rm -f "$ARCHIVE"; exit 1; }

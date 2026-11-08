@@ -32,6 +32,7 @@ jobs:
           NERA_FUZZ_SCALE: "100"
         run: swift test --filter "fuzz|Fuzz|Stress|Updates"
       - name: Pinned tools (checksums verified)
+        env: { GITHUB_TOKEN: "${{ github.token }}" }   # authenticates the download fallback (rate limit)
         run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
       - name: Cache the pinned Chromium Embedded Framework
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
@@ -53,6 +54,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with: { persist-credentials: false }
       - name: Pinned tools (checksums verified)
+        env: { GITHUB_TOKEN: "${{ github.token }}" }   # authenticates the download fallback (rate limit)
         run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
       - name: Cache the pinned Chromium Embedded Framework
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
