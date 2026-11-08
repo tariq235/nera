@@ -225,6 +225,38 @@ struct SurfaceModifier: ViewModifier {
 }
 
 #if os(macOS)
+    /// Shows or hides the window's close, minimize and zoom buttons (hidden with the sidebar, so the page fills the
+    /// window; they come back with the sidebar).
+    public struct WindowButtons: NSViewRepresentable {
+        let isVisible: Bool
+
+        /// Creates the control; put it in the window's background.
+        public init(visible: Bool) { isVisible = visible }
+
+        /// The backing view.
+        public func makeNSView(context: Context) -> NSView { ButtonsView() }
+
+        /// Applies the visibility.
+        public func updateNSView(_ nsView: NSView, context: Context) {
+            (nsView as? ButtonsView)?.isVisible = isVisible
+        }
+
+        final class ButtonsView: NSView {
+            var isVisible = true { didSet { apply() } }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                apply()
+            }
+
+            private func apply() {
+                for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                    window?.standardWindowButton(kind)?.isHidden = !isVisible
+                }
+            }
+        }
+    }
+
     /// Makes empty parts of Nera's top bars act like a Mac title bar: drag to move the window, double-click to
     /// zoom or minimize (whichever is set in System Settings › Desktop & Dock).
     public struct TitleBarArea: NSViewRepresentable {

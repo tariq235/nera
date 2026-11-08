@@ -125,33 +125,39 @@ public struct RootView: View {
             } else {
                 Color.clear.frame(width: 6).contentShape(Rectangle())
                     .onHover { inside in if inside { model.isSidebarPeeking = true } }
-                    .padding(.top, 40)
             }
+        }
+    #endif
+
+    #if os(macOS)
+        /// The page, with its rounded corners and shadow.
+        private var page: some View {
+            ContentArea(model: model)
+                // During a back/forward swipe the page stays put; an arrow slides in over its edge.
+                .overlay(alignment: model.pageSwipeProgress < 0 ? .leading : .trailing) {
+                    if model.pageSwipeProgress != 0 { SwipeArrow(progress: model.pageSwipeProgress) }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06)))
+                .shadow(color: .black.opacity(0.14), radius: 6, y: 2)
         }
     #endif
 
     @ViewBuilder private var layout: some View {
         #if os(macOS)
-            HStack(spacing: 0) {
+            // The sidebar slides over the window's left side; the page sits beside it, or fills the window inside a
+            // thin frame when the sidebar is hidden. The page takes its new size in one step (no animation): every
+            // size change makes the engine lay the page out again, and an animated one would do that every frame.
+            ZStack(alignment: .leading) {
+                page
+                    .padding(.leading, model.isSidebarVisible ? 260 : Self.pageInset)
+                    .padding([.top, .bottom, .trailing], Self.pageInset)
+                    .transaction(value: model.isSidebarVisible) { $0.animation = nil }
                 if model.isSidebarVisible {
                     sidebar
                         .frame(width: 260)
                         .transition(.move(edge: .leading).combined(with: .opacity))
                 }
-                VStack(spacing: 0) {
-                    if !model.isSidebarVisible { CollapsedTopBar(model: model).transition(.move(edge: .top).combined(with: .opacity)) }
-                    ContentArea(model: model)
-                        // During a back/forward swipe the page stays put; an arrow slides in over its edge.
-                        .overlay(alignment: model.pageSwipeProgress < 0 ? .leading : .trailing) {
-                            if model.pageSwipeProgress != 0 { SwipeArrow(progress: model.pageSwipeProgress) }
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06)))
-                        .shadow(color: .black.opacity(0.14), radius: 6, y: 2)
-                }
-                .padding(.top, model.isSidebarVisible ? Self.pageInset : 0).padding(.bottom, Self.pageInset)
-                .padding(.trailing, Self.pageInset)
-                .padding(.leading, model.isSidebarVisible ? 0 : Self.pageInset)
             }
             .overlay(alignment: .leading) { if !model.isSidebarVisible { peekingSidebar } }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
@@ -160,6 +166,7 @@ public struct RootView: View {
                 ZStack {
                     TitleBarArea()
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? 260 : nil)
+                    WindowButtons(visible: model.isSidebarVisible || model.isSidebarPeeking)
                 }
             }
             .ignoresSafeArea(.container, edges: .top)  // the sidebar runs up beside the window buttons, like the title bar
@@ -412,60 +419,3 @@ struct SidebarAccessories: View {
         }
     }
 }
-
-#if os(macOS)
-    /// The slim bar above the page while the sidebar is hidden: room for the window's buttons, the sidebar
-    /// toggle, back/forward/reload, and the page's address (click to edit).
-    struct CollapsedTopBar: View {
-        @Bindable var model: AppModel
-
-        var body: some View {
-            let nav = model.pageNavigation
-            ZStack {
-                TitleBarArea()  // drag to move, double-click to zoom, like a title bar
-                HStack(spacing: 2) {
-                    SidebarIconButton(symbol: "sidebar.left", help: "Show Sidebar (⌘S)") { model.toggleSidebar() }
-                    SidebarIconButton(symbol: "arrow.left", help: "Back (⌘[)", isEnabled: nav.canGoBack) { model.goBack() }
-                    SidebarIconButton(symbol: "arrow.right", help: "Forward (⌘])", isEnabled: nav.canGoForward) { model.goForward() }
-                    SidebarIconButton(
-                        symbol: nav.isLoading ? "xmark" : "arrow.clockwise", help: "Reload (⌘R)", isEnabled: model.state.selectedTab != nil
-                    ) { model.reload() }
-                    Spacer()
-                }
-                .padding(.leading, 74)  // the window's buttons sit here
-                addressPill
-            }
-            .padding(.trailing, 8)
-            .frame(height: 30)  // centered on the window buttons
-            .padding(.bottom, 6)
-        }
-
-        /// The page's icon and address, centered on the window; click to edit (⌘L).
-        private var addressPill: some View {
-            let tab = model.state.selectedTab
-            return Button {
-                model.showCommandBar(.currentTab)
-            } label: {
-                HStack(spacing: 7) {
-                    if let tab, tab.url != nil {
-                        SiteIcon(url: tab.url, size: 12, png: model.favicon(for: tab))
-                    } else {
-                        Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
-                    }
-                    Text(tab?.url.map { DisplayURL.short($0) } ?? "Search or enter address")
-                        .font(.system(size: 12.5, weight: .medium))
-                        .foregroundStyle(.primary.opacity(0.8))
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 12)
-                .frame(minWidth: 300, maxWidth: 460, minHeight: 26)
-                .surface(.resting, cornerRadius: 8)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Edit the address (⌘L)")
-            .accessibilityLabel("Address")
-            .accessibilityValue(tab?.url?.absoluteString ?? "")
-        }
-    }
-#endif

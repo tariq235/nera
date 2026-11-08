@@ -33,14 +33,14 @@ final class CEFBackend: ChromiumBackend {
         guard !NRAChromium.isStarted else { return true }
         let bundleID = Bundle.main.bundleIdentifier ?? "dev.nera.browser"
         // Automated runs (UI tests, the engine self-test; Debug builds only) get a throwaway profile, like their
-        // in-memory library, and Chromium's mock keychain: ad-hoc test builds change signature every build,
+        // in-memory library (UI tests, self-tests, demo screenshots), and Chromium's mock keychain: ad-hoc test builds change signature every build,
         // which would make the real Keychain item prompt each time. A shipped Nera never takes this path.
         // Benchmark runs (NERA_BENCH=1, any build) too: they must never touch the user's Keychain or profile.
         let benchmark = ProcessInfo.processInfo.environment["NERA_BENCH"] == "1"
         #if DEBUG
             let automated =
                 benchmark || ProcessInfo.processInfo.environment["NERA_UI_TEST"] != nil
-                || CommandLine.arguments.contains("--engine-self-test")
+                || CommandLine.arguments.contains("--engine-self-test") || CommandLine.arguments.contains("--demo")
         #else
             let automated = benchmark
         #endif
