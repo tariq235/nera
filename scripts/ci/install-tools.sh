@@ -21,10 +21,24 @@ ninja|1.13.2|https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninj
 cmake|4.4.5|https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.5-macos-universal.tar.gz|679e77a96b9ef9484cc6c1445255fc4f84206b48a65420efbedf16bdab55fbff
 "
 
+# Downloads a release file; when github.com's download link fails (its storage has outages per project), the same
+# file comes through GitHub's API instead. Safe either way: the SHA-256 below is checked whatever the source.
+fetch() {
+  local url="$1" out="$2"
+  curl -fsSL --retry 3 --retry-delay 5 --retry-all-errors -o "$out" "$url" && return
+  [[ $url =~ ^https://github.com/([^/]+/[^/]+)/releases/download/([^/]+)/(.+)$ ]] || return 1
+  local api="https://api.github.com/repos/${BASH_REMATCH[1]}" tag="${BASH_REMATCH[2]}" asset="${BASH_REMATCH[3]}" id
+  local auth=(); [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+  echo "  $asset: download link failed; trying GitHub's API"
+  id=$(curl -fsSL --retry 3 --retry-delay 5 ${auth[@]+"${auth[@]}"} "$api/releases/tags/$tag" \
+       | python3 -c 'import json,sys; print(next(a["id"] for a in json.load(sys.stdin)["assets"] if a["name"] == sys.argv[1]))' "$asset") || return 1
+  curl -fsSL --retry 3 --retry-delay 5 ${auth[@]+"${auth[@]}"} -H "Accept: application/octet-stream" -o "$out" "$api/releases/assets/$id"
+}
+
 echo "$TOOLS" | while IFS='|' read -r name version url sha; do
   [ -n "$name" ] || continue
   file="$WORK/$name-$version-$(basename "$url")"   # versioned: a bump never reuses an old download
-  [ -f "$file" ] || curl -fsSL --retry 5 --retry-delay 10 --retry-connrefused -o "$file" "$url"   # rides out short CDN outages (HTTP 5xx)
+  [ -f "$file" ] || { fetch "$url" "$file.part" && mv "$file.part" "$file"; }
   echo "$sha  $file" | shasum -a 256 -c --quiet || { echo "✘ $name $version: checksum mismatch"; rm -f "$file"; exit 1; }
   dir="$WORK/$name"
   rm -rf "$dir" && mkdir -p "$dir"
