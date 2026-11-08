@@ -56,12 +56,14 @@ struct StartPage: View {
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
-                    // 70% of the primary color: 5.6:1 on the start page (WCAG AA needs 4.5:1); `.secondary` was 4.0:1.
-                    .foregroundStyle(.primary.opacity(0.7))
+                    .foregroundStyle(Self.secondaryText)
                     .accessibilityIdentifier("start.date")
             }
         }
     }
+
+    /// Secondary text on the translucent start page: 5.6:1 contrast (`.secondary` measures about 4:1, under WCAG AA).
+    static let secondaryText = Color.primary.opacity(0.7)
 
     static func greeting(for date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
@@ -81,7 +83,7 @@ struct StartPage: View {
                     .accessibilityHidden(true)
                 Text("Search \(model.state.settings.searchEngine.name) or enter an address")
                     .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Self.secondaryText)
                 Spacer()
                 KeyCap("⌘T")
             }
@@ -140,7 +142,7 @@ struct StartPage: View {
                     ? "HTTPS-Only is on · no telemetry · your data stays on this Mac" : "No telemetry · your data stays on this Mac")
         }
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Self.secondaryText)
     }
 }
 
@@ -207,7 +209,7 @@ struct TipCard: View {
                     KeyCap(keys)
                 }
                 Text(title).font(.callout.weight(.semibold))
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(detail).font(.caption).foregroundStyle(StartPage.secondaryText).lineLimit(1)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -227,7 +229,7 @@ struct KeyCap: View {
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(StartPage.secondaryText)
             .padding(.horizontal, 6).padding(.vertical, 3)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(.primary.opacity(0.1)))
