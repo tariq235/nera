@@ -9,6 +9,16 @@ import XCTest
 final class SmokeTests: XCTestCase {
     var app = XCUIApplication()
 
+    /// Every audit on a physical Mac. On a virtual machine (GitHub's runners) the contrast audit measures text against
+    /// the VM's black desktop behind the translucent window, not the page on screen: it flags text measured at
+    /// 5.7:1 and even solid black. All other audits still run there.
+    static var auditTypes: XCUIAccessibilityAuditType {
+        var isVirtualMachine: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        sysctlbyname("kern.hv_vmm_present", &isVirtualMachine, &size, nil, 0)
+        return isVirtualMachine == 1 ? XCUIAccessibilityAuditType.all.subtracting(.contrast) : .all
+    }
+
     override func setUp() async throws {
         continueAfterFailure = false
         app = XCUIApplication()
@@ -78,23 +88,20 @@ final class SmokeTests: XCTestCase {
                 && abs(element.frame.height - window.height) < 60
             let isMenuButtonAction = element.elementType == .menuButton && issue.auditType == .action
             let isTitleBarChrome = element.frame.maxY <= window.minY + 30
-            // The start page date measures 5.6:1 in the CI screenshots, yet the audit reports it on GitHub's VMs even
-            // in solid black (about 18:1). It passes on a physical Mac.
-            let isDateFalsePositive = issue.auditType == .contrast && element.identifier == "start.date"
-            if isMenuButtonAction || isTitleBarChrome || isDateFalsePositive { return true }
+            if isMenuButtonAction || isTitleBarChrome { return true }
             if !isWindowContainer { print("a11y-audit: \(issue.compactDescription) — \(element.debugDescription.prefix(300))") }
             return isWindowContainer
         }
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
 
         app.typeKey("t", modifierFlags: .command)
         XCTAssertTrue(app.textFields["commandBar.field"].waitForExistence(timeout: 5))
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
         app.typeKey(.escape, modifierFlags: [])
 
         openViaCommandBar("data:text/html,<title>Audit Page</title><h1>Audit</h1>")
         XCTAssertTrue(sidebarTab("Audit Page").waitForExistence(timeout: 15))
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
     }
 
     /// a download appears in the tray (opened automatically), finishes, and can be cleared.

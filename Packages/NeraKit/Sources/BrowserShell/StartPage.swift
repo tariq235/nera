@@ -57,7 +57,6 @@ struct StartPage: View {
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
                     .foregroundStyle(Self.secondaryText)
-                    .accessibilityIdentifier("start.date")
             }
         }
     }
