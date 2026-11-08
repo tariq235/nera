@@ -22,6 +22,7 @@ settings:
     DEAD_CODE_STRIPPING: YES
     SWIFT_STRICT_CONCURRENCY: complete
     GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    CLANG_ENABLE_OBJC_ARC: YES   # the Chromium bridge relies on ARC (__weak); don't depend on XcodeGen's presets
     # Release builds are dev.nera.browser. Debug builds get their own identity (data folder, Keychain item, Chromium
     # profile), so development and test launches never touch the data of the Nera someone uses; automated runs
     # override it again (NERA_APP_BUNDLE_ID=dev.nera.browser.test).

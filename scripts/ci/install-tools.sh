@@ -35,7 +35,10 @@ echo "$TOOLS" | while IFS='|' read -r name version url sha; do
   esac
   case "$name" in
     cmake) ln -sf "$(find "$dir" -path '*CMake.app/Contents/bin/cmake' | head -1)" "$BIN/cmake" ;;
-    xcodegen) ln -sf "$(find "$dir" -name xcodegen -type f -perm -u+x | head -1)" "$BIN/xcodegen" ;;
+    # XcodeGen finds its default build settings next to its own path, so a symlink would lose them (ARC off).
+    xcodegen) rm -f "$BIN/xcodegen"
+              printf '#!/bin/sh\nexec "%s" "$@"\n' "$(find "$dir" -name xcodegen -type f -perm -u+x | head -1)" > "$BIN/xcodegen"
+              chmod +x "$BIN/xcodegen" ;;
     *) ln -sf "$(find "$dir" -name "$name" -type f | head -1)" "$BIN/$name" ;;
   esac
   echo "✔ $name $version"
