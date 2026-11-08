@@ -117,7 +117,10 @@ jobs:
       - name: Disk image
         run: |
           DMG="build/out/Nera-$VERSION.dmg"; echo "DMG=$DMG" >> "$GITHUB_ENV"
-          hdiutil create -volname Nera -srcfolder build/out/Nera.app -ov -format UDZO "$DMG"
+          # This version's CHANGELOG section goes into the disk image as its release notes.
+          awk -v v="## ${VERSION} " 'index($0, v) == 1 { n = 1; next } /^## / { n = 0 } n' CHANGELOG.md > "$RUNNER_TEMP/notes.txt"
+          [ -s "$RUNNER_TEMP/notes.txt" ] || { echo "::error::CHANGELOG.md has no '## $VERSION' section"; exit 1; }
+          ./scripts/release/build-dmg.sh build/out/Nera.app "$VERSION" "$RUNNER_TEMP/notes.txt" "$DMG"
           if [ "$DRY_RUN" != "true" ]; then codesign --sign "$SIGN_IDENTITY" --timestamp "$DMG"; fi
 
       - name: Notarize & staple the disk image
