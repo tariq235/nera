@@ -9,7 +9,8 @@
 ///
 /// Players that stream through Media Source Extensions (X, most social and news sites) never put an unplayable type
 /// on a media element: they ask `MediaSource.isTypeSupported` and show their own error. So a page that fetched HLS
-/// playlists or MP4 video while the engine can't play H.264 is flagged too.
+/// playlists or MP4 video (successfully: a missing file isn't another engine's job) while the engine can't play
+/// H.264 is flagged too.
 public enum MediaProbe {
     /// The script, for ``WebPage/evaluate(_:)``.
     public static let script = """
@@ -23,7 +24,7 @@ public enum MediaProbe {
           if ([...document.querySelectorAll('video, audio')].some(unsupported)) return 'unsupported';
           const h264 = window.MediaSource && MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E"');
           const streamed = performance.getEntriesByType('resource')
-            .some(e => /\\.(m3u8|mp4)(\\?|$)/i.test(e.name) && e.initiatorType !== 'link');
+            .some(e => /\\.(m3u8|mp4)(\\?|$)/i.test(e.name) && e.initiatorType !== 'link' && e.responseStatus >= 200 && e.responseStatus < 300);
           return !h264 && streamed && document.querySelector('video') ? 'unsupported' : 'ok';
         })()
         """
