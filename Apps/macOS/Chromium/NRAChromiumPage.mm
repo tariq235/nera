@@ -568,7 +568,6 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
             extra->SetBool("nera.passkeys", wantsPasskeys);
             page->_browser = CefBrowserHost::CreateBrowserSync(window, page->_client, "", browserSettings, extra, ContextFor(key, persistent));
             if (!page->_browser) return;
-            NSView *child = (__bridge NSView *)page->_browser->GetHost()->GetWindowHandle();
             NSArray<dispatch_block_t> *queued = [page->_pending copy];
             [page->_pending removeAllObjects];
             for (dispatch_block_t block in queued) block();
