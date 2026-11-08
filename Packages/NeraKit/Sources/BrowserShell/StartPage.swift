@@ -56,7 +56,8 @@ struct StartPage: View {
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    // Darker than `.secondary`, which falls below readable contrast on the translucent background.
+                    .foregroundStyle(.primary.opacity(0.7))
             }
         }
     }

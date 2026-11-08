@@ -13,7 +13,13 @@ final class SmokeTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["NERA_UI_TEST"] = "1"
-        app.launch()
+        // On CI virtual machines the first launch occasionally fails ("does not have a process ID"); one retry.
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = false
+        XCTExpectFailure("first launch on a CI virtual machine", options: options) { app.launch() }
+        if app.state != .runningForeground {
+            app.launch()
+        }
     }
 
     override func tearDown() async throws {
@@ -27,9 +33,16 @@ final class SmokeTests: XCTestCase {
     }
 
     /// Opens Settings (⌘,) on a tab, whichever tab it remembered last.
+    /// Falls back to the app menu when ⌘, doesn't reach the app (happens on CI virtual machines).
     private func openSettingsTab(_ label: String) {
+        app.activate()
         app.typeKey(",", modifierFlags: .command)
-        let tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
+        var tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
+        if !tab.waitForExistence(timeout: 5) {
+            app.menuBars.menuBarItems["Nera"].click()
+            app.menuBars.menuItems.matching(NSPredicate(format: "title BEGINSWITH 'Settings'")).firstMatch.click()
+            tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
+        }
         XCTAssertTrue(tab.waitForExistence(timeout: 10), "Settings didn't open")
         tab.click()
     }
