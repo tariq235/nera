@@ -6,6 +6,9 @@
 //   Nera --demo                         a throwaway in-memory library with Spaces, folders, Favorites and a split
 //   Nera --demo --screenshot out.png    also visits every tab (so real site icons load), then saves the window
 //   ... --size 1180x720                 window size for the shot (default 1440x900)
+//   ... --quick                         don't visit every tab first (faster; placeholder icons)
+//   ... --url <url>                     open this page first, in any scene
+//   ... --hold <seconds>                wait before the shot (time to drive the window from a test script)
 //   ... --shot <name>                    which scene: hero (default), command, start, split, editSpace, newSpace,
 //                                        or a welcome step: welcome-intro, welcome-essentials, welcome-privacy,
 //                                        welcome-source, welcome-spaces, welcome-extensions, welcome-favorites,
@@ -94,7 +97,8 @@
                     let ids =
                         model.state.spaces.flatMap(model.state.orderedTabs(in:)).map(\.id)
                         + model.state.profiles.flatMap(\.favorites).map(\.id)
-                    for id in ids {
+                    // --quick: skip visiting every tab (icons stay placeholders).
+                    for id in ids where !CommandLine.arguments.contains("--quick") {
                         model.send(.tab(.select(id)))
                         try? await Task.sleep(for: .seconds(2.5))
                     }
@@ -114,6 +118,7 @@
                 }
                 resizeWindow()  // also brings the window to the front, so its buttons are drawn active
                 try? await Task.sleep(for: .seconds(1.5))
+                if let hold = argument(after: "--hold").flatMap(Double.init) { try? await Task.sleep(for: .seconds(hold)) }
                 let ok = capture(to: URL(fileURLWithPath: path))
                 FileHandle.standardOutput.write(Data("demo: \(ok ? "✔ saved" : "✘ couldn't capture") \(path)\n".utf8))  // Debug tool output
                 exit(ok ? 0 : 1)
@@ -155,6 +160,11 @@
 
         /// Sets up the scene a `--shot` asks for (some save their own window and quit).
         private static func prepare(_ shot: String, _ model: AppModel, path: String) async {
+            // --url with any other scene: that scene on that page (layout checks on a test page).
+            if shot != "visit", let raw = argument(after: "--url"), let url = URL(string: raw) {
+                model.send(.tab(.open(url, .newTab)))
+                try? await Task.sleep(for: .seconds(5))
+            }
             if shot == "command" { model.showCommandBar(.newTab) }
             if shot == "editSpace", let id = model.state.spaces.first?.id { model.editSpace(id) }
             if shot == "newSpace" { model.newSpace() }

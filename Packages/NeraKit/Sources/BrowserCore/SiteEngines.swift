@@ -7,11 +7,12 @@ public import Foundation
 /// neither: proprietary codecs need a licensed build, Widevine a license from Google); WebKit plays both. So
 /// streaming services open in WebKit by default, and the user can send any other site there too.
 public enum SiteEngines {
-    /// Streaming services that need DRM or H.264/AAC: WebKit by default.
+    /// Streaming services that need DRM or H.264/AAC, and sites whose video is H.264 only (X serves no other
+    /// format): WebKit by default.
     public static let webKitByDefault: Set<String> = [
         "netflix.com", "disneyplus.com", "primevideo.com", "hulu.com", "max.com", "tv.apple.com", "peacocktv.com",
         "paramountplus.com", "crunchyroll.com", "open.spotify.com", "music.apple.com", "music.amazon.com", "tidal.com",
-        "deezer.com",
+        "deezer.com", "x.com", "twitter.com",
     ]
 
     /// The key sites are stored under: the host without "www.".

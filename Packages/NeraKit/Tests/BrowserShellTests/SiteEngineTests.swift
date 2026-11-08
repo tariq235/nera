@@ -43,6 +43,10 @@ struct SiteEngineTests {
         #expect(SiteEngines.preferred(for: URL(string: "https://open.spotify.com/album/1"), in: profile) == .webKit)
         #expect(SiteEngines.preferred(for: URL(string: "https://spotify.com/"), in: profile) == nil, "only the web player")
         #expect(SiteEngines.preferred(for: URL(string: "https://example.com"), in: profile) == nil)
+        #expect(SiteEngines.preferred(for: URL(string: "https://x.com/home"), in: profile) == .webKit, "X's video is H.264 only")
+        #expect(SiteEngines.preferred(for: URL(string: "https://mobile.twitter.com/"), in: profile) == .webKit)
+        profile.siteEngines = ["x.com": .chromium]
+        #expect(SiteEngines.preferred(for: URL(string: "https://x.com/home"), in: profile) == .chromium, "the user can keep X on Chromium")
         profile.siteEngines = ["x.com": .webKit, "netflix.com": .chromium]
         #expect(SiteEngines.preferred(for: URL(string: "https://video.x.com/a"), in: profile) == .webKit, "subdomains follow")
         #expect(SiteEngines.preferred(for: URL(string: "https://www.netflix.com/"), in: profile) == .chromium, "the user's choice wins")

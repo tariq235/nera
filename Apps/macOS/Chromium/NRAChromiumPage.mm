@@ -509,6 +509,23 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
 
 }  // namespace
 
+/// Holds Chromium's view and lays it out explicitly: it always fills this view. (Autoresizing masks can't be
+/// trusted here: a container that is briefly zero-sized while SwiftUI sets up its layout leaves the child with a
+/// wrong frame for good, and the page then shows nothing or is drawn shifted.)
+@interface NRAPageHostView : NSView
+@end
+
+@implementation NRAPageHostView
+- (void)resizeSubviewsWithOldSize:(NSSize)oldSize {
+    for (NSView *child in self.subviews) child.frame = self.bounds;
+}
+- (void)didAddSubview:(NSView *)subview {
+    [super didAddSubview:subview];
+    subview.autoresizingMask = NSViewNotSizable;
+    subview.frame = self.bounds;
+}
+@end
+
 @implementation NRAChromiumPage {
     CefRefPtr<PageClient> _client;
     CefRefPtr<CefBrowser> _browser;
@@ -529,7 +546,7 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
                           passkeys:(BOOL)passkeys
                           delegate:(id<NRAChromiumPageDelegate>)delegate {
     if ((self = [super init])) {
-        _view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)];
+        _view = [[NRAPageHostView alloc] initWithFrame:NSMakeRect(0, 0, 800, 600)];
         _view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
         _client = new PageClient(self, delegate);
         _pending = [NSMutableArray array];
@@ -552,8 +569,6 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
             page->_browser = CefBrowserHost::CreateBrowserSync(window, page->_client, "", browserSettings, extra, ContextFor(key, persistent));
             if (!page->_browser) return;
             NSView *child = (__bridge NSView *)page->_browser->GetHost()->GetWindowHandle();
-            child.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
-            child.frame = page->_view.bounds;
             NSArray<dispatch_block_t> *queued = [page->_pending copy];
             [page->_pending removeAllObjects];
             for (dispatch_block_t block in queued) block();
