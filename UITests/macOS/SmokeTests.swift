@@ -78,7 +78,10 @@ final class SmokeTests: XCTestCase {
                 && abs(element.frame.height - window.height) < 60
             let isMenuButtonAction = element.elementType == .menuButton && issue.auditType == .action
             let isTitleBarChrome = element.frame.maxY <= window.minY + 30
-            if isMenuButtonAction || isTitleBarChrome { return true }
+            // The start page date measures 5.6:1 in the CI screenshots, yet the audit reports it on GitHub's VMs even
+            // in solid black (about 18:1). It passes on a physical Mac.
+            let isDateFalsePositive = issue.auditType == .contrast && element.identifier == "start.date"
+            if isMenuButtonAction || isTitleBarChrome || isDateFalsePositive { return true }
             if !isWindowContainer { print("a11y-audit: \(issue.compactDescription) — \(element.debugDescription.prefix(300))") }
             return isWindowContainer
         }
