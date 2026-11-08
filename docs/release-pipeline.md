@@ -15,7 +15,7 @@ run all of it with a read-only token and no secrets.
 
 1. The maintainer adds the release notes to `CHANGELOG.md` and pushes a signed version tag (`v0.2.0`).
 2. `.github/workflows/release.yml` waits for the maintainer's approval of the `release` environment, which holds
-   the signing secrets.
+   the signing secrets (set, and checked first, by `scripts/release/set-release-secrets.sh` on the maintainer's Mac).
 3. It downloads and verifies the pinned Chromium Embedded Framework (SHA-256, never from a cache), runs the tests on
    the tagged commit, and builds the app with the hardened runtime.
 4. Release gates: entitlements, bundled third-party notices, no Debug-only test hooks, and the source link in the
