@@ -78,6 +78,7 @@ test or document that proves it.
   [Issues](https://github.com/tariq235/nera/issues), using the form (please remove private details from logs and screenshots).
 - Sending a change: [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: privately, see [SECURITY.md](SECURITY.md).
 - Nera is made by one person with AI assistance, so replies can take a few days.
+- Supporting Nera: [GitHub Sponsors](https://github.com/sponsors/tariq235). Nera stays free, with no ads or telemetry either way.
 
 ## License
 
