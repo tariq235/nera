@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "sidebar": {
+    "containers": [
+      { "global": {} },
+      {
+        "spaces": [
+          "AAAAAAAA-0000-0000-0000-000000000001",
+          {
+            "id": "AAAAAAAA-0000-0000-0000-000000000001",
+            "title": "Work",
+            "containerIDs": ["unpinned", "C-UNPINNED-1", "pinned", "C-PINNED-1"],
+            "newContainerIDs": [{ "pinned": {} }, "C-PINNED-1", { "unpinned": { "_0": {} } }, "C-UNPINNED-1"],
+            "profile": { "default": true },
+            "customInfo": { "iconType": { "emoji_v2": "💼", "emoji": 128188 } }
+          },
+          "AAAAAAAA-0000-0000-0000-000000000002",
+          {
+            "id": "AAAAAAAA-0000-0000-0000-000000000002",
+            "title": "",
+            "containerIDs": ["pinned", "C-PINNED-2", "unpinned", "C-UNPINNED-2"],
+            "profile": { "custom": { "_0": {} } },
+            "customInfo": {}
+          }
+        ],
+        "items": [
+          "C-PINNED-1", { "id": "C-PINNED-1", "childrenIds": ["T-DOCS", "F-PROJECTS"], "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "AAAAAAAA-0000-0000-0000-000000000001" } } } } },
+          "C-UNPINNED-1", { "id": "C-UNPINNED-1", "childrenIds": ["T-NEWS", "E-EASEL", "T-BROKEN"], "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "AAAAAAAA-0000-0000-0000-000000000001" } } } } },
+          "T-DOCS", { "id": "T-DOCS", "parentID": "C-PINNED-1", "childrenIds": [], "title": null, "createdAt": 700000000.0, "isUnread": false,
+                      "data": { "tab": { "savedURL": "https://docs.example.com/home", "savedTitle": "Docs", "savedMuteStatus": "allowAudio", "timeLastActiveAt": 790000000.0 } } },
+          "F-PROJECTS", { "id": "F-PROJECTS", "parentID": "C-PINNED-1", "childrenIds": ["T-REPO", "S-SPLIT"], "title": "Projects", "data": { "list": {} } },
+          "T-REPO", { "id": "T-REPO", "parentID": "F-PROJECTS", "childrenIds": [], "title": "My Repo", "data": { "tab": { "savedURL": "https://git.example.com/me/repo", "savedTitle": "repo", "timeLastActiveAt": 790000100.0 } } },
+          "S-SPLIT", { "id": "S-SPLIT", "parentID": "F-PROJECTS", "childrenIds": ["T-LEFT", "T-RIGHT"], "data": { "splitView": {} } },
+          "T-LEFT", { "id": "T-LEFT", "childrenIds": [], "data": { "tab": { "savedURL": "https://left.example.com", "savedTitle": "Left" } } },
+          "T-RIGHT", { "id": "T-RIGHT", "childrenIds": [], "data": { "tab": { "savedURL": "https://right.example.com", "savedTitle": "Right" } } },
+          "T-NEWS", { "id": "T-NEWS", "parentID": "C-UNPINNED-1", "childrenIds": [], "data": { "tab": { "savedURL": "https://news.example.com", "savedTitle": "News", "timeLastActiveAt": 790000200.0 } } },
+          "E-EASEL", { "id": "E-EASEL", "childrenIds": [], "data": { "easel": {} } },
+          "T-BROKEN", { "id": "T-BROKEN", "childrenIds": [], "data": { "tab": { "savedTitle": "No URL" } } },
+          "C-PINNED-2", { "id": "C-PINNED-2", "childrenIds": [], "data": { "itemContainer": {} } },
+          "C-UNPINNED-2", { "id": "C-UNPINNED-2", "childrenIds": ["T-OTHER"], "data": { "itemContainer": {} } },
+          "T-OTHER", { "id": "T-OTHER", "childrenIds": [], "data": { "tab": { "savedURL": "https://other.example.com", "savedTitle": "Other" } } },
+          "C-TOP", { "id": "C-TOP", "childrenIds": ["T-MAIL"], "data": { "itemContainer": { "containerType": { "topApps": {} } } } },
+          "T-MAIL", { "id": "T-MAIL", "childrenIds": [], "data": { "tab": { "savedURL": "https://mail.example.com", "savedTitle": "Mail" } } }
+        ],
+        "topAppsContainerIDs": [{ "default": true }, "C-TOP"]
+      }
+    ]
+  },
+  "sidebarSyncState": {},
+  "firebaseSyncState": {}
+}

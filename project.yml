@@ -1,0 +1,233 @@
+# XcodeGen spec. Run `make project` to (re)generate Nera.xcodeproj. The .xcodeproj is not committed.
+# Rename the product: change PRODUCT_NAME + bundle IDs here and `name:` in Apps/*/Info.plist properties.
+name: Nera
+options:
+  bundleIdPrefix: dev.nera
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  NeraKit:
+    path: Packages/NeraKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    GCC_TREAT_WARNINGS_AS_ERRORS: NO
+    # Release builds are dev.nera.browser. Debug builds get their own identity (data folder, Keychain item, Chromium
+    # profile), so development and test launches never touch the data of the Nera someone uses; automated runs
+    # override it again (NERA_APP_BUNDLE_ID=dev.nera.browser.test).
+    NERA_APP_BUNDLE_ID: dev.nera.browser
+  configs:
+    Debug:
+      NERA_APP_BUNDLE_ID: dev.nera.browser.debug
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+      # No debugger-attach entitlement in shipped builds (notarization rejects it).
+      CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+
+# Chromium's five helper apps (renderer, GPU, utilities, plugin, alerts) all run the same small program.
+targetTemplates:
+  ChromiumHelper:
+    type: application
+    platform: macOS
+    configFiles: { Debug: build/cef.xcconfig, Release: build/cef.xcconfig }  # make project → scripts/engine/prepare-cef.sh
+    sources: [Apps/macOS/ChromiumHelper/main.cc]
+    info:
+      path: build/generated/${target_name}-Info.plist
+      properties:
+        LSUIElement: true
+        LSFileQuarantineEnabled: true
+        LSEnvironment: { MallocNanoZone: "0" }
+        NSSupportsAutomaticGraphicsSwitching: true
+    settings:
+      base:
+        ARCHS: arm64
+        CLANG_CXX_LANGUAGE_STANDARD: c++20
+        GCC_PREPROCESSOR_DEFINITIONS: ["CEF_USE_SANDBOX=1"]
+        HEADER_SEARCH_PATHS: ["$(CEF_ROOT)"]
+        LIBRARY_SEARCH_PATHS: ["$(CEF_WRAPPER_DIR)"]
+        OTHER_LDFLAGS: ["-lcef_dll_wrapper"]
+        CODE_SIGNING_ALLOWED: NO   # signed by scripts/engine/embed-cef.sh with per-bundle entitlements
+        ENABLE_DEBUG_DYLIB: NO     # one executable per helper (the Debug stub + .debug.dylib split breaks re-signing)
+        SKIP_INSTALL: YES
+
+targets:
+  Nera:
+    type: application
+    platform: macOS
+    configFiles: { Debug: build/cef.xcconfig, Release: build/cef.xcconfig }  # make project → scripts/engine/prepare-cef.sh
+    sources:
+      - Apps/Shared
+      - path: Apps/macOS
+        excludes: ["ChromiumHelper/**"]
+    dependencies:
+      - package: NeraKit
+        product: BrowserShell
+      - package: NeraKit
+        product: WebKitEngine
+      - package: NeraKit
+        product: ChromiumEngine
+      - package: NeraKit
+        product: Passkeys
+      - package: NeraKit
+        product: EngineConformance   # used only by the Debug engine self-test (Apps/macOS/Chromium/EngineSelfTest.swift)
+      - { target: NeraHelper, embed: true, codeSign: false, copy: { destination: frameworks } }
+      - { target: NeraHelperGPU, embed: true, codeSign: false, copy: { destination: frameworks } }
+      - { target: NeraHelperRenderer, embed: true, codeSign: false, copy: { destination: frameworks } }
+      - { target: NeraHelperPlugin, embed: true, codeSign: false, copy: { destination: frameworks } }
+      - { target: NeraHelperAlerts, embed: true, codeSign: false, copy: { destination: frameworks } }
+    # Hardened runtime + library validation, no App Sandbox: Chromium's browser process needs what the App
+    # Sandbox denies, and every Chromium child process runs in Chromium's own sandbox (ADR-0006, ADR-0009).
+    # Only hardened-runtime resource entitlements remain; each is justified in docs/security/security-model.md.
+    # XcodeGen writes this file; edit entitlements here, not in the .entitlements file.
+    entitlements:
+      path: Apps/macOS/Nera.entitlements
+      properties:
+        com.apple.security.device.camera: true
+        com.apple.security.device.audio-input: true
+        com.apple.security.personal-information.location: true
+    preBuildScripts:
+      - name: Remove the previous build's CEF framework
+        # Xcode validates frameworks already in the product; CEF's layout fails that check. Re-added below.
+        script: rm -rf "$TARGET_BUILD_DIR/$WRAPPER_NAME/Contents/Frameworks/Chromium Embedded Framework.framework"
+        basedOnDependencyAnalysis: false
+    postBuildScripts:
+      - name: Embed and sign Chromium
+        script: '"$SRCROOT/scripts/engine/embed-cef.sh"'
+        basedOnDependencyAnalysis: false
+    info:
+      path: Apps/macOS/Info.plist
+      properties:
+        CFBundleDisplayName: Nera
+        CFBundleShortVersionString: $(MARKETING_VERSION)   # the version users see (0.1.0)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)         # the build number updates compare (make-dmg.sh sets it)
+        NSPrincipalClass: NRAChromiumApplication   # CEF's CefAppProtocol NSApplication (harmless when Chromium is off)
+        LSEnvironment: { MallocNanoZone: "0" }     # CEF requirement
+        LSApplicationCategoryType: public.app-category.productivity
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: "Copyright © 2026 Tariq Mohammad. Open source under the Mozilla Public License 2.0."
+        # MPL-2.0 §3.2: where the source is. About and the DMG read it; public releases require it to resolve
+        # (the public repository).
+        NeraSourceURL: "https://github.com/tariq235/nera"
+        NSCameraUsageDescription: Websites you allow can use your camera.
+        NSMicrophoneUsageDescription: Websites you allow can use your microphone.
+        NSLocationWhenInUseUsageDescription: Websites you allow can use your location.
+        NSUserActivityTypes: [NSUserActivityTypeBrowsingWeb]
+        NeraPasskeysEntitled: $(NERA_PASSKEYS_ENTITLED)   # YES only in the entitled build (docs/security/passkeys.md)
+        # Safe Browsing: the API key, restricted to the Safe Browsing API. Injected by release builds from the
+        # Keychain ("Nera Safe Browsing Key") or the release secret; never committed (docs/release/safe-browsing-key.md).
+        NeraSafeBrowsingKey: $(NERA_SAFE_BROWSING_KEY)
+        # Updates (ADR-0011): the signed feed on the public repo's latest release, and the Ed25519 public key every
+        # update must be signed with (private key: "Nera Update Signing Key" in the maintainer's Keychain).
+        NeraUpdateFeedURL: https://github.com/tariq235/nera/releases/latest/download/appcast.xml
+        NeraUpdatePublicKey: "A0bi2PFP+vR+ohTsd1n09iGIRoi22u3ZK4RhJ7qU0W4=,tgEjRb7lq1CWSqw7TRTN2QoLh429CWUMBF88kkX+AAo="   # current, standby (docs/release/update-signing-key.md)
+        CFBundleURLTypes:
+          - CFBundleURLName: Web site URL
+            CFBundleURLSchemes: [http, https]
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: HTML document
+            CFBundleTypeRole: Viewer
+            LSItemContentTypes: [public.html, public.xhtml]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(NERA_APP_BUNDLE_ID)
+        PRODUCT_NAME: Nera
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon   # Apps/macOS/Assets.xcassets (scripts/brand/render-icon.swift)
+        NERA_PASSKEYS_ENTITLED: NO           # the entitled release build sets YES + Nera-Passkeys.entitlements
+        NERA_SAFE_BROWSING_KEY: ""           # set by make-dmg.sh / the release workflow
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        COMBINE_HIDPI_IMAGES: YES
+        ARCHS: arm64                         # the pinned CEF is the macOS arm64 distribution
+        CLANG_CXX_LANGUAGE_STANDARD: c++20
+        SWIFT_OBJC_BRIDGING_HEADER: Apps/macOS/Chromium/Nera-Bridging-Header.h
+        HEADER_SEARCH_PATHS: ["$(CEF_ROOT)"]
+        LIBRARY_SEARCH_PATHS: ["$(CEF_WRAPPER_DIR)"]
+        OTHER_LDFLAGS: ["-lcef_dll_wrapper"]
+        ENABLE_USER_SCRIPT_SANDBOXING: NO   # embed-cef.sh writes into the product and reads the CEF cache
+
+  NeraHelper:
+    templates: [ChromiumHelper]
+    settings: { base: { PRODUCT_NAME: "Nera Helper", PRODUCT_BUNDLE_IDENTIFIER: "$(NERA_APP_BUNDLE_ID).helper" } }
+  NeraHelperGPU:
+    templates: [ChromiumHelper]
+    settings: { base: { PRODUCT_NAME: "Nera Helper (GPU)", PRODUCT_BUNDLE_IDENTIFIER: "$(NERA_APP_BUNDLE_ID).helper.gpu" } }
+  NeraHelperRenderer:
+    templates: [ChromiumHelper]
+    settings: { base: { PRODUCT_NAME: "Nera Helper (Renderer)", PRODUCT_BUNDLE_IDENTIFIER: "$(NERA_APP_BUNDLE_ID).helper.renderer" } }
+  NeraHelperPlugin:
+    templates: [ChromiumHelper]
+    settings: { base: { PRODUCT_NAME: "Nera Helper (Plugin)", PRODUCT_BUNDLE_IDENTIFIER: "$(NERA_APP_BUNDLE_ID).helper.plugin" } }
+  NeraHelperAlerts:
+    templates: [ChromiumHelper]
+    settings: { base: { PRODUCT_NAME: "Nera Helper (Alerts)", PRODUCT_BUNDLE_IDENTIFIER: "$(NERA_APP_BUNDLE_ID).helper.alerts" } }
+
+  NeraMobile:
+    type: application
+    platform: iOS
+    sources:
+      - Apps/Shared
+      - Apps/iOS
+    dependencies:
+      - package: NeraKit
+        product: BrowserShell
+      - package: NeraKit
+        product: WebKitEngine
+    info:
+      path: Apps/iOS/Info.plist
+      properties:
+        CFBundleDisplayName: Nera
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+        NSCameraUsageDescription: Websites you allow can use your camera.
+        NSMicrophoneUsageDescription: Websites you allow can use your microphone.
+        NSLocationWhenInUseUsageDescription: Websites you allow can use your location.
+        NSUserActivityTypes: [NSUserActivityTypeBrowsingWeb]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nera.browser.mobile
+        PRODUCT_NAME: Nera
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+
+  NeraUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources: [UITests/macOS]
+    dependencies:
+      - target: Nera
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.nera.browser.uitests
+        TEST_TARGET_NAME: Nera
+        CODE_SIGN_IDENTITY: "-"
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Nera:
+    build:
+      targets:
+        Nera: all
+        NeraUITests: [test]
+    test:
+      targets: [NeraUITests]
+      gatherCoverageData: true
+  NeraMobile:
+    build:
+      targets:
+        NeraMobile: all

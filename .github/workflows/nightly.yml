@@ -1,0 +1,71 @@
+name: Nightly
+
+# Long-running tiers that don't belong on every PR (testing requirements): deep fuzzing and the reproducible-build
+# check, the Chromium version check and the privacy audit, on GitHub-hosted runners.
+on:
+  schedule:
+    - cron: "17 2 * * *"   # 02:17 UTC
+  workflow_dispatch:
+
+permissions: { contents: read }
+
+jobs:
+  chromium-version:
+    # SEC-072 / SIGN-004: fails when a newer stable Chromium (CEF) exists, so the 7-day update SLA starts.
+    runs-on: macos-26
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Pinned Chromium is the latest stable
+        run: python3 -I scripts/ci/check-cef-version.py
+
+  deep:
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Deep fuzz + stress (100× the PR iterations)
+        working-directory: Packages/NeraKit
+        env:
+          NERA_FUZZ_SCALE: "100"
+        run: swift test --filter "fuzz|Fuzz|Stress|Updates"
+      - name: Pinned tools (checksums verified)
+        run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
+      - name: Cache the pinned Chromium Embedded Framework
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/Library/Caches/Nera/cef
+          key: cef-${{ hashFiles('scripts/engine/fetch-cef.sh') }}
+      - name: Prepare CEF
+        run: ./scripts/engine/prepare-cef.sh
+      - run: xcodegen generate --quiet
+      - name: Reproducible build
+        run: ./scripts/ci/check-reproducible.sh
+
+  privacy-audit:
+    # PRV-006: Chromium's own background traffic on a clean profile. Its own job (never skipped because another
+    # tier failed), with the test bundle ID.
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Pinned tools (checksums verified)
+        run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
+      - name: Cache the pinned Chromium Embedded Framework
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/Library/Caches/Nera/cef
+          key: cef-${{ hashFiles('scripts/engine/fetch-cef.sh') }}
+      - name: Prepare CEF
+        run: ./scripts/engine/prepare-cef.sh
+      - run: xcodegen generate --quiet
+      - name: Debug build (test bundle ID)
+        run: xcodebuild -project Nera.xcodeproj -scheme Nera -configuration Debug -destination 'platform=macOS' -derivedDataPath build/dd NERA_APP_BUNDLE_ID=dev.nera.browser.test build -quiet
+      - name: Privacy audit
+        # The 3 disclosed hosts (docs/security/security-model.md) are known; any other host fails the job.
+        env:
+          KNOWN_HOSTS: "update.googleapis.com www.google.com www.gstatic.com"
+        run: ./scripts/privacy/chromium-traffic.sh build/dd/Build/Products/Debug/Nera.app

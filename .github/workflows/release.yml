@@ -1,0 +1,169 @@
+name: Release (macOS)
+
+# A version tag builds, signs, notarizes and publishes a draft release, on a GitHub-hosted runner. The `release`
+# environment holds the secrets and only the maintainer can approve it (docs/release-pipeline.md).
+# Manual runs (workflow_dispatch) are dry runs by default: the same pipeline without Developer ID or notarization,
+# with a throwaway update key, so the whole path is exercised before the Apple account exists (REL-005…REL-009).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version: { description: "Version (e.g. 0.3.0-rc.1)", required: true }
+      channel: { description: "Update channel", type: choice, options: [nightly, beta, stable], default: beta }
+      dry_run: { description: "Dry run (no Developer ID, no notarization, nothing published)", type: boolean, default: true }
+
+permissions: {}
+
+jobs:
+  macos:
+    runs-on: macos-26
+    environment: release
+    permissions:
+      contents: write      # the draft release
+      id-token: write      # build provenance (REL-009)
+      attestations: write
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+      CHANNEL: ${{ inputs.channel || (contains(github.ref_name, '-') && 'beta' || 'stable') }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      HAS_DEVELOPER_ID: ${{ secrets.DEVELOPER_ID_CERT_P12 != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Version and mode
+        run: |
+          VERSION="${VERSION#v}"; echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          if [ "$DRY_RUN" != "true" ] && [ "$HAS_DEVELOPER_ID" != "true" ]; then
+            echo "::error::A real release needs the Developer ID secrets (REL-005). Use a dry run until they exist."; exit 1
+          fi
+          if [ "$DRY_RUN" != "true" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::A real release runs from a version tag (the release and its update feed are named after it)."; exit 1
+          fi
+          echo "Release $VERSION on $CHANNEL (dry run: $DRY_RUN)"
+      - name: Pinned tools (checksums verified)
+        run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
+      - name: Prepare CEF (pinned; downloaded and SHA-256 verified in this run, no cache)
+        env: { NERA_CEF_VERIFY: "1" }
+        run: ./scripts/engine/prepare-cef.sh
+      - run: xcodegen generate --quiet
+
+      - name: "Gate: tests must pass on the released commit"
+        working-directory: Packages/NeraKit
+        run: swift test --parallel
+
+      - name: Import Developer ID certificate into a throwaway keychain
+        if: env.DRY_RUN != 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_CERT_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/release.keychain-db"; KC_PW="$(uuidgen)"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 900 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PW" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "RELEASE_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
+      - name: Build (Release, hardened runtime)
+        env:
+          SAFE_BROWSING_KEY: ${{ secrets.SAFE_BROWSING_KEY }}   # restricted to the Safe Browsing API
+        run: |
+          IDENTITY="-"; [ "$DRY_RUN" != "true" ] && IDENTITY="Developer ID Application"
+          xcodebuild -project Nera.xcodeproj -scheme Nera -configuration Release -destination 'platform=macOS' \
+            -derivedDataPath build/release build -quiet \
+            MARKETING_VERSION="${VERSION%%-*}" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            CODE_SIGN_IDENTITY="$IDENTITY" OTHER_CODE_SIGN_FLAGS="--timestamp" \
+            NERA_SAFE_BROWSING_KEY="$SAFE_BROWSING_KEY"
+          mkdir -p build/out && ditto build/release/Build/Products/Release/Nera.app build/out/Nera.app
+
+      - name: Release gates (entitlements, notices, no test hooks)
+        run: |
+          ./scripts/ci/check-entitlements.sh build/out/Nera.app
+          ./scripts/release/check-release-bundle.sh build/out/Nera.app
+          # MPL-2.0 §3.2: the source link in About and the DMG must lead to the public repository before anyone gets the app.
+          SOURCE=$(/usr/libexec/PlistBuddy -c "Print NeraSourceURL" build/out/Nera.app/Contents/Info.plist)
+          [ "$SOURCE" = "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" ] || { echo "✘ NeraSourceURL ($SOURCE) isn't this repository"; exit 1; }
+          curl -fsSLI -o /dev/null "$SOURCE" || { echo "✘ the source isn't public at $SOURCE"; exit 1; }
+
+      - name: Notarize & staple the app
+        if: env.DRY_RUN != 'true'
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+        run: |
+          umask 077; echo "$AC_API_KEY_P8" > "$RUNNER_TEMP/key.p8"
+          ditto -c -k --keepParent build/out/Nera.app build/out/Nera.zip
+          xcrun notarytool submit build/out/Nera.zip --key "$RUNNER_TEMP/key.p8" --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER_ID" --wait
+          xcrun stapler staple build/out/Nera.app
+          rm build/out/Nera.zip
+
+      - name: Disk image
+        run: |
+          DMG="build/out/Nera-$VERSION.dmg"; echo "DMG=$DMG" >> "$GITHUB_ENV"
+          hdiutil create -volname Nera -srcfolder build/out/Nera.app -ov -format UDZO "$DMG"
+          if [ "$DRY_RUN" != "true" ]; then codesign --sign "Developer ID Application" --timestamp "$DMG"; fi
+
+      - name: Notarize & staple the disk image
+        if: env.DRY_RUN != 'true'
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_P8: ${{ secrets.AC_API_KEY_P8 }}
+        run: |
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/key.p8" --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER_ID" --wait
+          xcrun stapler staple "$DMG"
+          rm -f "$RUNNER_TEMP/key.p8"
+
+      - name: Update signature + appcast (EdDSA)
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          if [ "$DRY_RUN" = "true" ] || [ -z "$SPARKLE_ED_PRIVATE_KEY" ]; then
+            echo "Dry run: signing with a throwaway key"
+            SPARKLE_ED_PRIVATE_KEY=$(swift scripts/release/sign-update.swift generate-keys | awk '/private/{print $NF}')
+            export SPARKLE_ED_PRIVATE_KEY
+          fi
+          read -r SIG LEN < <(swift scripts/release/sign-update.swift sign "$DMG")
+          # The app reads releases/latest/download/appcast.xml; its entry points at this release's own download.
+          BASE="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          python3 scripts/release/make-appcast.py --feed build/out/appcast.xml --build "$GITHUB_RUN_NUMBER" --min-os 14.0 \
+            --version "$VERSION" --channel "$CHANNEL" --url "$BASE/$(basename "$DMG")" --signature "$SIG" --length "$LEN" \
+            --rollout-days $([ "$CHANNEL" = stable ] && echo 1 || echo 0)
+
+      - name: SBOM + checksums
+        run: |
+          python3 scripts/release/sbom.py --version "$VERSION" --artifact "$DMG" > "build/out/Nera-$VERSION.cdx.json"
+          (cd build/out && shasum -a 256 "$(basename "$DMG")" "Nera-$VERSION.cdx.json" > SHA256SUMS)
+
+      - name: Build provenance (SLSA)
+        # GitHub supports attestations on public repos (and on private repos with Enterprise Cloud).
+        if: github.event.repository.private == false
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        with:
+          subject-path: build/out/Nera-*.dmg
+
+      - name: Keep the release files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: nera-${{ env.VERSION }}
+          path: build/out/*.*
+          retention-days: ${{ env.DRY_RUN == 'true' && 7 || 90 }}
+
+      - name: GitHub Release (draft)
+        if: env.DRY_RUN != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/out/*.dmg build/out/*.cdx.json build/out/SHA256SUMS build/out/appcast.xml \
+            --draft --generate-notes $([ "$CHANNEL" = nightly ] && echo --prerelease)
+
+      - name: Remove the signing keychain
+        if: always() && env.RELEASE_KEYCHAIN != ''
+        run: security delete-keychain "$RELEASE_KEYCHAIN"

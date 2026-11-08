@@ -1,0 +1,4 @@
+# WebKit's Objective-C delegate signatures use implicitly unwrapped optionals (WKNavigation!);
+# conformances must match them.
+disabled_rules:
+  - implicitly_unwrapped_optional

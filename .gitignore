@@ -1,0 +1,29 @@
+# Build output
+build/
+.build/
+DerivedData/
+*.xcodeproj
+!Packages/**/*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.xcresult
+.swiftpm/
+
+
+# Third-party tools cloned for local use
+tools/
+
+# Secrets
+*.p12
+*.p8
+*.mobileprovision
+*.provisionprofile
+.env*
+
+# macOS
+.DS_Store
+*.profraw
+
+# Python bytecode
+__pycache__/
+*.pyc

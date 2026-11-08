@@ -1,0 +1,72 @@
+# SwiftLint owns code-safety rules; `swift format` (.swift-format) owns layout.
+# Standard: docs/standards/coding-standard.md
+included:
+  - Packages/NeraKit/Sources
+  - Packages/NeraKit/Tests
+  - Apps
+  - UITests
+excluded:
+  - Packages/NeraKit/.build
+  - build
+
+disabled_rules:          # layout rules owned by swift-format
+  - trailing_comma
+  - line_length
+  - opening_brace
+  - vertical_parameter_alignment_on_call
+  - closure_parameter_position
+  - todo                 # TODOs allowed; tracked in checklists
+  - optional_data_string_conversion   # String(decoding:as:) is used on purpose: lossy and never failing on untrusted bytes
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - discouraged_optional_boolean
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - fatal_error_message
+  - unowned_variable_capture
+  - private_outlet
+  - redundant_nil_coalescing
+  - toggle_bool
+  - unused_declaration
+  - weak_delegate
+
+identifier_name:
+  min_length: 1          # short names are fine in tight scopes (closures, indices)
+  max_length: 60
+type_name:
+  max_length: 60
+function_body_length:
+  warning: 80
+  error: 150
+cyclomatic_complexity:
+  warning: 20
+  error: 40
+file_length:
+  warning: 600
+  error: 1000
+nesting:
+  type_level: 3
+function_parameter_count:
+  warning: 6             # reducer helpers take state + action values + environment
+  error: 8
+
+custom_rules:
+  no_print:
+    name: "No print in shipped code"
+    regex: '^\s*print\('
+    included: "Packages/NeraKit/Sources/(?!TestSupport|EngineConformance)"
+    message: "Use os.Logger with privacy: .private for user data (SR-071)."
+    severity: error
+  no_trust_override:
+    name: "Never override certificate trust (SR-002)"
+    regex: 'URLCredential\(\s*trust:'
+    message: "Nera never overrides server-trust evaluation."
+    severity: error
+
+analyzer_rules:
+  - unused_import
+
+reporter: xcode

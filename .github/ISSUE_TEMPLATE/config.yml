@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (privately)
+    url: "https://github.com/tariq235/nera/security/advisories/new"
+    about: Please don't report security problems in public issues.
+  - name: Questions and ideas
+    url: "https://github.com/tariq235/nera/discussions"
+    about: Ask and discuss in Discussions.

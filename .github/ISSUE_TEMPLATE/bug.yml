@@ -1,0 +1,28 @@
+name: Bug report
+description: Something in Nera doesn't work as it should.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please **remove private information** (addresses of private pages, account names,
+        tokens, personal data) from everything you paste. Security problems: report privately (see SECURITY.md).
+  - type: input
+    id: version
+    attributes: { label: Nera version, description: "Settings › Advanced › About" }
+    validations: { required: true }
+  - type: input
+    id: macos
+    attributes: { label: macOS version }
+    validations: { required: true }
+  - type: dropdown
+    id: engine
+    attributes: { label: Engine, options: [Chromium (default), WebKit, Not sure] }
+  - type: textarea
+    id: steps
+    attributes: { label: Steps to reproduce }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What you expected, and what happened instead }
+    validations: { required: true }

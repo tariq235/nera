@@ -1,0 +1,14 @@
+name: Feature idea
+description: Suggest something new. Bigger ideas are best discussed in Discussions first.
+labels: [feature, needs-triage]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: What problem would this solve? }
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes: { label: Your idea }
+  - type: textarea
+    id: alternatives
+    attributes: { label: Alternatives you've considered }

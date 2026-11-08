@@ -1,0 +1,3 @@
+# The CEF bridge's delegate selectors mirror CEF callbacks, which carry more than six values.
+disabled_rules:
+  - function_parameter_count

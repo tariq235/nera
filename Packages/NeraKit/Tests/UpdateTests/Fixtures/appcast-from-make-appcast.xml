@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Nera</title>
+    <item>
+      <title>Nera 0.3.0</title>
+      <pubDate>Tue, 27 Oct 2026 00:36:18 GMT</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+      <sparkle:channel>beta</sparkle:channel>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <sparkle:criticalUpdate />
+      <enclosure url="https://u.example/b.dmg" length="6" type="application/octet-stream" sparkle:edSignature="AMHekfKGiQptN/w/R4OnMd07a9RAjGGQMdCNxy9mJJ0lNUzChzcHV7SzfOoxZoxTJ1lVR/Yfe5TV4K6JWccyAg==" />
+    </item>
+    <item>
+      <title>Nera 0.2.0</title>
+      <pubDate>Tue, 27 Oct 2026 00:36:18 GMT</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <sparkle:phasedRolloutInterval>86400</sparkle:phasedRolloutInterval>
+      <enclosure url="https://u.example/a.dmg" length="6" type="application/octet-stream" sparkle:edSignature="AMHekfKGiQptN/w/R4OnMd07a9RAjGGQMdCNxy9mJJ0lNUzChzcHV7SzfOoxZoxTJ1lVR/Yfe5TV4K6JWccyAg==" />
+    </item>
+  </channel>
+</rss>

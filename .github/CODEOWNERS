@@ -1,0 +1,21 @@
+# Changes here need the maintainer's review: security-sensitive code, the build and release
+# process, and the project's policies.
+*                                                   @tariq235
+/Packages/NeraKit/Sources/SecurityPolicy/          @tariq235
+/Packages/NeraKit/Sources/EngineKit/               @tariq235
+/Packages/NeraKit/Sources/WebKitEngine/            @tariq235
+/Packages/NeraKit/Sources/ChromiumEngine/          @tariq235
+/Packages/NeraKit/Sources/Networking/              @tariq235
+/Packages/NeraKit/Sources/Update/                  @tariq235
+/Packages/NeraKit/Sources/SafeBrowsing/            @tariq235
+/Packages/NeraKit/Sources/BrowserData/             @tariq235
+/Packages/NeraKit/Sources/Passkeys/                @tariq235
+/Apps/macOS/Chromium/                               @tariq235
+/Apps/macOS/ChromiumHelper/                         @tariq235
+/Apps/macOS/*.entitlements                          @tariq235
+/.github/                                           @tariq235
+/scripts/release/                                   @tariq235
+/project.yml                                        @tariq235
+/LICENSE                                            @tariq235
+/SECURITY.md                                        @tariq235
+/PRIVACY.md                                         @tariq235

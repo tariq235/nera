@@ -1,0 +1,21 @@
+name: A website doesn't work
+description: A site that works in other browsers looks or behaves wrong in Nera.
+labels: [site-compat, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Please only share a page address you're comfortable making public. Remove private information from logs.
+  - type: input
+    id: site
+    attributes: { label: Site or page }
+    validations: { required: true }
+  - type: dropdown
+    id: engine
+    attributes: { label: Does it work with the other engine?, description: "Address bar › site info › Open This Site with WebKit/Chromium", options: [Works with WebKit, Works with Chromium, Broken in both, Didn't try] }
+  - type: textarea
+    id: what
+    attributes: { label: What goes wrong }
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes: { label: Nera and macOS versions }

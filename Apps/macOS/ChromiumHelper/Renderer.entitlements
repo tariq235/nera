@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The only entitlement any Chromium helper holds (ADR-0009, SEC-074): V8 can't reserve its code range
+     without it. Measured with the CEF prototype: the GPU helper and all others work with none. -->
+<plist version="1.0"><dict><key>com.apple.security.cs.allow-jit</key><true/></dict></plist>

@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions: {}   # each job asks for the least it needs
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# GitHub-hosted runners only, including for pull requests from forks: no secrets are used here (ADR-0007).
+# Actions are pinned to commit SHAs; Dependabot proposes updates.
+jobs:
+  policy:
+    name: Policy (format, lint, architecture, docs, secrets, licenses, clean room)
+    runs-on: macos-26
+    permissions: { contents: read }
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false, fetch-depth: 0 }   # full history for secret scanning
+      - name: Pinned tools (checksums verified)
+        run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
+      - name: Formatting (swift format)
+        run: swift format lint --strict --recursive --parallel Packages/NeraKit/Sources Packages/NeraKit/Tests Apps UITests
+      - name: Lint (SwiftLint)
+        run: swiftlint lint --strict --quiet
+      - name: Architecture
+        run: python3 -I scripts/ci/check-architecture.py && python3 -I scripts/ci/check-mpl-headers.py
+      - name: Secrets (gitleaks, full history)
+        run: ./scripts/ci/check-secrets.sh
+      - name: Licenses
+        run: python3 -I scripts/ci/check-licenses.py
+      - name: Clean room
+        run: python3 -I scripts/ci/check-clean-room.py --rules clean-room
+      - name: Arc naming
+        run: python3 -I scripts/ci/check-clean-room.py --rules naming
+      - name: Accessibility labels (icon-only buttons)
+        run: python3 -I scripts/ci/check-a11y-labels.py
+      - name: Dependencies (OSV)
+        run: ./scripts/ci/check-dependencies.sh
+      - name: Network inventory
+        run: ./scripts/ci/check-network-inventory.sh
+      - name: Log redaction
+        run: python3 -I scripts/ci/check-log-redaction.py
+      - name: Documentation (public API, links, checklists, DocC)
+        run: |
+          python3 -I scripts/ci/check-public-docs.py
+          python3 -I scripts/ci/check-doc-links.py
+          python3 -I scripts/ci/check-checklists.py
+          ./scripts/ci/check-docc.sh
+
+  unit:
+    name: Unit + engine tests
+    runs-on: macos-26
+    permissions: { contents: read }
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Build with warnings as errors
+        working-directory: Packages/NeraKit
+        run: swift build --build-tests -Xswiftc -warnings-as-errors
+      - name: swift test (unit, engine conformance on every engine)
+        working-directory: Packages/NeraKit
+        run: swift test --parallel
+
+  app:
+    name: Apps, security gates, UI smoke
+    runs-on: macos-26
+    permissions: { contents: read, actions: read }   # actions: main's size report for the growth check
+    timeout-minutes: 60
+    needs: [policy, unit]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with: { persist-credentials: false }
+      - name: Pinned tools (checksums verified)
+        run: ./scripts/ci/install-tools.sh && echo "$PWD/build/tools/bin" >> "$GITHUB_PATH"
+      - name: Cache the pinned Chromium Embedded Framework
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ~/Library/Caches/Nera/cef
+          key: cef-${{ hashFiles('scripts/engine/fetch-cef.sh') }}
+      - name: Prepare CEF (pinned, SHA-256 verified, cached on the runner)
+        run: ./scripts/engine/prepare-cef.sh
+      - name: Generate project
+        run: xcodegen generate --quiet
+      - name: macOS Release build (hardened runtime)
+        run: xcodebuild -project Nera.xcodeproj -scheme Nera -configuration Release -destination 'platform=macOS' -derivedDataPath build/DerivedData build -quiet
+      - name: Main's size report (baseline for the growth check)
+        continue-on-error: true
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow CI --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          [ -n "$RUN" ] && gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n size-report -D build/size-baseline
+      - name: Size gate (macOS)
+        env:
+          # Growth is reviewed on PRs (label 'size-increase-approved'); after a reviewed merge, main just records
+          # its size report (the absolute budget still applies).
+          SIZE_GROWTH_APPROVED: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'size-increase-approved')) && '1' || '0' }}
+        run: python3 -I scripts/ci/check-binary-size.py macos build/DerivedData/Build/Products/Release/Nera.app
+      - name: Static analysis of the Chromium bridge and helper (SEC-068)
+        run: ./scripts/ci/check-static-analysis.sh
+      - name: Entitlement gate
+        run: ./scripts/ci/check-entitlements.sh build/DerivedData/Build/Products/Release/Nera.app
+      - name: Release bundle gate (notices bundled, no Debug test hooks)
+        run: ./scripts/release/check-release-bundle.sh build/DerivedData/Build/Products/Release/Nera.app
+      - name: Network inventory gate
+        run: ./scripts/ci/check-network-inventory.sh
+      - name: macOS UI smoke tests
+        run: rm -rf build/UITests.xcresult && xcodebuild -project Nera.xcodeproj -scheme Nera -destination 'platform=macOS' -derivedDataPath build/DerivedData NERA_APP_BUNDLE_ID=dev.nera.browser.test test -quiet -resultBundlePath build/UITests.xcresult
+      - name: Engine self-test (real Chromium + WebKit conformance, Chromium security configuration)
+        run: ./scripts/ci/engine-self-test.sh build/DerivedData/Build/Products/Debug/Nera.app
+      - name: Engine matrix in checklist 005 is up to date
+        run: python3 -I scripts/ci/render-engine-matrix.py --check
+      - name: iOS/iPadOS simulator build
+        run: |
+          SIM_ID=$(./scripts/ci/pick-ios-simulator.sh)
+          xcodebuild -project Nera.xcodeproj -scheme NeraMobile -configuration Release -destination "platform=iOS Simulator,id=$SIM_ID" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Size gate (iOS)
+        run: python3 -I scripts/ci/check-binary-size.py ios build/DerivedData/Build/Products/Release-iphonesimulator/Nera.app
+      - name: Keep size report (next PRs compare against main's)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: size-report
+          path: build/size
+          retention-days: 90
+      - name: Show UI test failures
+        if: failure()
+        run: |
+          [ -d build/UITests.xcresult ] || exit 0
+          xcrun xcresulttool get test-results tests --path build/UITests.xcresult | python3 -I -c '
+          import json, sys
+          def walk(n, path):
+              if n.get("nodeType") == "Failure Message":
+                  name = n.get("name", "")
+                  print(f"::error title={path}::{name}")
+              for c in n.get("children", []):
+                  walk(c, n.get("name", path) if n.get("nodeType") == "Test Case" else path)
+          for t in json.load(sys.stdin)["testNodes"]:
+              walk(t, "")
+          '
+      - name: Upload UI test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: ui-test-results
+          path: build/UITests.xcresult
+          retention-days: 7

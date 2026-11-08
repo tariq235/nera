@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Nera Test Blocker",
+  "version": "1.0",
+  "description": "Conformance fixture: blocks ads.nera.test and marks pages from a content script.",
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "block",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "Nera Test Blocker",
+    "default_popup": "popup.html"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArMjb9oDi1CJOmn2ebirdkm8pghiKiXw20binqXn3sloQ8BJ/BAfB4bJKnrWiH3v5gT/8gSNWDqdB/8O+5+owy1udxstGr9mWYH51Q48YBzuiQP2JxbPF8TmR5peO1O8bpjU5H4osHXsN0TE++UnLhB7VxcHebpaVQcyXMEY0yAKa6fTOxOZsc/NDkpmwgcKLa8ARKguRQjdm1jGA4Ae76BAUKZNl3WNWgW7l+O3bmiqAp0/tdaAzVAunXaE9L9rseoKLxIJ8B639kwgr15BiycImtTQNOoFH5kZO/CXLrgRtRPqR3vY5uJOhFz1tiw3DIhacTncYefAHTOwWwY3A9QIDAQAB"
+}

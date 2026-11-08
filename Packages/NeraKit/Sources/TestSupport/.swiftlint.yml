@@ -1,0 +1,5 @@
+# Test-only code: force unwraps/casts of known-good values are fine here.
+disabled_rules:
+  - force_unwrapping
+  - force_try
+  - force_cast

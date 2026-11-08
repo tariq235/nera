@@ -1,0 +1,10 @@
+# gitleaks configuration: the default rules, plus reviewed false positives.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Reviewed: public keys, not secrets"
+paths = [
+  # The conformance extension's manifest `key` is an RSA *public* key that fixes the extension's ID.
+  '''Tests/Fixtures/extensions/nera-test-blocker/manifest\.json''',
+]

@@ -1,0 +1,2 @@
+# Build-time only (never shipped): lays out the DMG window without scripting Finder. MIT licensed.
+dmgbuild==1.6.7
