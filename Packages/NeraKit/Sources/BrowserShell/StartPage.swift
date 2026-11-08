@@ -78,6 +78,7 @@ struct StartPage: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium)).foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text("Search \(model.state.settings.searchEngine.name) or enter an address")
                     .font(.system(size: 16))
                     .foregroundStyle(.secondary)
@@ -133,7 +134,7 @@ struct StartPage: View {
 
     private var privacyLine: some View {
         HStack(spacing: 6) {
-            Image(systemName: "lock.shield.fill").foregroundStyle(Theme.accent(for: theme))
+            Image(systemName: "lock.shield.fill").foregroundStyle(Theme.accent(for: theme)).accessibilityHidden(true)  // the text says it
             Text(
                 model.state.settings.httpsOnly
                     ? "HTTPS-Only is on · no telemetry · your data stays on this Mac" : "No telemetry · your data stays on this Mac")

@@ -77,7 +77,7 @@ public struct CommandBarView: View {
                 .onTapGesture { dismiss() }
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                     TextField(host.commandBarDisposition == .newTab ? "Search or enter URL…" : "Edit URL or search…", text: $text)
                         .textFieldStyle(.plain)
                         .font(.title3)
@@ -97,7 +97,7 @@ public struct CommandBarView: View {
                     VStack(spacing: 2) {
                         ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, s in
                             HStack(spacing: 10) {
-                                Image(systemName: s.symbol).frame(width: 18)
+                                Image(systemName: s.symbol).frame(width: 18).accessibilityHidden(true)
                                 Text(s.title).lineLimit(1)
                                 Spacer()
                                 Text(s.subtitle).foregroundStyle(.secondary).lineLimit(1)
