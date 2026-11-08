@@ -24,7 +24,7 @@ cmake|4.4.5|https://github.com/Kitware/CMake/releases/download/v4.4.5/cmake-4.4.
 echo "$TOOLS" | while IFS='|' read -r name version url sha; do
   [ -n "$name" ] || continue
   file="$WORK/$name-$version-$(basename "$url")"   # versioned: a bump never reuses an old download
-  [ -f "$file" ] || curl -fsSL -o "$file" "$url"
+  [ -f "$file" ] || curl -fsSL --retry 5 --retry-delay 10 --retry-connrefused -o "$file" "$url"   # rides out short CDN outages (HTTP 5xx)
   echo "$sha  $file" | shasum -a 256 -c --quiet || { echo "✘ $name $version: checksum mismatch"; rm -f "$file"; exit 1; }
   dir="$WORK/$name"
   rm -rf "$dir" && mkdir -p "$dir"
