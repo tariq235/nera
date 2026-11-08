@@ -4,6 +4,8 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.1 — 2026-11-08
+
 - Pages are no longer drawn shifted after showing or hiding the sidebar: the top of the page was cut off and
   clicks landed above where they were aimed.
 - Hiding the sidebar now gives the page the whole window, inside a thin frame; the window's buttons and the
