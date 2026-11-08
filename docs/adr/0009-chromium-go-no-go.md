@@ -34,7 +34,7 @@ The deciding finding: CEF has no extension API of its own any more. Extensions r
    | Budget | Limit |
    |---|---|
    | Download (zip/dmg) | ≤ 160 MB |
-   | App bundle | ≤ 360 MB |
+   | App bundle | ≤ 380 MB (360 MB until 2026-11-08; raised once CEF 156.0.15 alone took 326 MB while the download stayed at 121 MB) |
    | First load | ≤ 0.5 s |
    | Idle memory, one tab, no extensions | ≤ 700 MB |
    | Idle CPU | ≤ 1.5 % |

@@ -222,7 +222,7 @@ extension AppModel {
                             .accessibilityIdentifier("dangerous.back")
                         if site.threat != .malware {
                             Button("Continue anyway") { model.continueToDangerousSite(pageID) }
-                                .buttonStyle(.link)
+                                .linkButtonStyle()
                                 .foregroundStyle(.white.opacity(0.85))
                                 .accessibilityIdentifier("dangerous.continue")
                         }

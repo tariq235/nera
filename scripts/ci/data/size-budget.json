@@ -1,6 +1,6 @@
 {
-  "_comment": "Absolute app-size budgets (docs/standards/performance-budget.md). macOS bundles Chromium (CEF): 360 MB per ADR-0009 (download <= 160 MB). Changing a budget needs a PR that says why. A deliberate jump beyond max_growth_percent needs the PR label 'size-increase-approved'.",
+  "_comment": "Absolute app-size budgets (docs/standards/performance-budget.md). macOS bundles Chromium (CEF): 380 MB per ADR-0009 (download <= 160 MB). Changing a budget needs a PR that says why. A deliberate jump beyond max_growth_percent needs the PR label 'size-increase-approved'.",
   "max_growth_percent": 2,
-  "macos": { "max_bytes": 360000000 },
+  "macos": { "max_bytes": 380000000 },
   "ios": { "max_bytes": 20000000 }
 }

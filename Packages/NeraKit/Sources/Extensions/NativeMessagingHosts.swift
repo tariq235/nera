@@ -12,11 +12,15 @@ public enum NativeMessagingHosts {
 
     /// Where Chrome's manifests live (system-wide first, then the user's).
     public static var chromeLocations: [URL] {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        return [
-            URL(fileURLWithPath: "/Library/Google/Chrome/NativeMessagingHosts"),
-            home.appending(path: "Library/Application Support/Google/Chrome/NativeMessagingHosts"),
-        ]
+        #if os(macOS)
+            let home = FileManager.default.homeDirectoryForCurrentUser
+            return [
+                URL(fileURLWithPath: "/Library/Google/Chrome/NativeMessagingHosts"),
+                home.appending(path: "Library/Application Support/Google/Chrome/NativeMessagingHosts"),
+            ]
+        #else
+            return []  // no desktop Chrome or native messaging on iOS
+        #endif
     }
 
     /// Copies valid, allowlisted manifests from `sources` into `destination`. Returns the host names mirrored.

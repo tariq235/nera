@@ -56,10 +56,13 @@ struct StartPage: View {
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Self.secondaryText)
             }
         }
     }
+
+    /// Secondary text on the translucent start page: 5.6:1 contrast (`.secondary` measures about 4:1, under WCAG AA).
+    static let secondaryText = Color.primary.opacity(0.7)
 
     static func greeting(for date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
@@ -76,9 +79,10 @@ struct StartPage: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass").font(.system(size: 17, weight: .medium)).foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text("Search \(model.state.settings.searchEngine.name) or enter an address")
                     .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Self.secondaryText)
                 Spacer()
                 KeyCap("⌘T")
             }
@@ -131,13 +135,13 @@ struct StartPage: View {
 
     private var privacyLine: some View {
         HStack(spacing: 6) {
-            Image(systemName: "lock.shield.fill").foregroundStyle(Theme.accent(for: theme))
+            Image(systemName: "lock.shield.fill").foregroundStyle(Theme.accent(for: theme)).accessibilityHidden(true)  // the text says it
             Text(
                 model.state.settings.httpsOnly
                     ? "HTTPS-Only is on · no telemetry · your data stays on this Mac" : "No telemetry · your data stays on this Mac")
         }
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Self.secondaryText)
     }
 }
 
@@ -204,7 +208,7 @@ struct TipCard: View {
                     KeyCap(keys)
                 }
                 Text(title).font(.callout.weight(.semibold))
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(detail).font(.caption).foregroundStyle(StartPage.secondaryText).lineLimit(1)
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -224,7 +228,7 @@ struct KeyCap: View {
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .medium, design: .rounded))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(StartPage.secondaryText)
             .padding(.horizontal, 6).padding(.vertical, 3)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(.primary.opacity(0.1)))

@@ -9,11 +9,27 @@ import XCTest
 final class SmokeTests: XCTestCase {
     var app = XCUIApplication()
 
+    /// Every audit on a physical Mac. On a virtual machine (GitHub's runners) the contrast audit measures text against
+    /// the VM's black desktop behind the translucent window, not the page on screen: it flags text measured at
+    /// 5.7:1 and even solid black. All other audits still run there.
+    static var auditTypes: XCUIAccessibilityAuditType {
+        var isVirtualMachine: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        sysctlbyname("kern.hv_vmm_present", &isVirtualMachine, &size, nil, 0)
+        return isVirtualMachine == 1 ? XCUIAccessibilityAuditType.all.subtracting(.contrast) : .all
+    }
+
     override func setUp() async throws {
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["NERA_UI_TEST"] = "1"
-        app.launch()
+        // On CI virtual machines the first launch occasionally fails ("does not have a process ID"); one retry.
+        let options = XCTExpectedFailure.Options()
+        options.isStrict = false
+        XCTExpectFailure("first launch on a CI virtual machine", options: options) { app.launch() }
+        if app.state != .runningForeground {
+            app.launch()
+        }
     }
 
     override func tearDown() async throws {
@@ -26,12 +42,23 @@ final class SmokeTests: XCTestCase {
             .firstMatch
     }
 
-    /// Opens Settings (⌘,) on a tab, whichever tab it remembered last.
+    /// Opens Settings (⌘,) on a section, whichever section it remembered last. Depending on the macOS version the
+    /// sections are toolbar buttons or rows in a sidebar list.
     private func openSettingsTab(_ label: String) {
+        app.activate()
         app.typeKey(",", modifierFlags: .command)
-        let tab = app.toolbars.buttons[label].exists ? app.toolbars.buttons[label] : app.buttons[label]
-        XCTAssertTrue(tab.waitForExistence(timeout: 10), "Settings didn't open")
-        tab.click()
+        let window = app.windows.matching(NSPredicate(format: "identifier BEGINSWITH 'com_apple_SwiftUI_Settings_window'"))
+        let section = NSPredicate(format: "label == %@ OR value == %@", label, label)
+        let candidates = [
+            app.toolbars.buttons[label], app.buttons[label], window.staticTexts.matching(section).firstMatch,
+        ]
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, !candidates.contains(where: \.exists) {
+            _ = candidates[0].waitForExistence(timeout: 0.5)
+        }
+        let tab = candidates.first(where: \.exists)
+        XCTAssertNotNil(tab, "Settings didn't open")
+        tab?.click()
     }
 
     private func openViaCommandBar(_ text: String) {
@@ -65,16 +92,16 @@ final class SmokeTests: XCTestCase {
             if !isWindowContainer { print("a11y-audit: \(issue.compactDescription) — \(element.debugDescription.prefix(300))") }
             return isWindowContainer
         }
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
 
         app.typeKey("t", modifierFlags: .command)
         XCTAssertTrue(app.textFields["commandBar.field"].waitForExistence(timeout: 5))
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
         app.typeKey(.escape, modifierFlags: [])
 
         openViaCommandBar("data:text/html,<title>Audit Page</title><h1>Audit</h1>")
         XCTAssertTrue(sidebarTab("Audit Page").waitForExistence(timeout: 15))
-        try app.performAccessibilityAudit(for: .all, ignoreSystemChrome)
+        try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
     }
 
     /// a download appears in the tray (opened automatically), finishes, and can be cleared.

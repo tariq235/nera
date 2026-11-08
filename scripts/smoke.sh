@@ -40,7 +40,8 @@ xcodebuild -project Nera.xcodeproj -scheme Nera -destination 'platform=macOS' \
 step "iOS/iPadOS simulator build (Release)"
 SIM_ID="$(./scripts/ci/pick-ios-simulator.sh)"
 xcodebuild -project Nera.xcodeproj -scheme NeraMobile -configuration Release -destination "platform=iOS Simulator,id=$SIM_ID" \
-  -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO build -quiet
+  -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO ARCHS=arm64 DEPLOYMENT_POSTPROCESSING=YES STRIP_INSTALLED_PRODUCT=YES \
+  build -quiet  # measured like the shipped app: Apple silicon only, symbols stripped
 
 step "App size budgets"
 make -s size

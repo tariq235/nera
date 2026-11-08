@@ -125,7 +125,7 @@ struct SiteStyleEditor: View {
                 Spacer()
                 if !siteStyle.zapped.isEmpty {
                     Button("Restore \(siteStyle.zapped.count)") { siteStyle.zapped = [] }
-                        .buttonStyle(.link)
+                        .linkButtonStyle()
                         .help("Show everything you hid again")
                 }
             }
@@ -170,7 +170,7 @@ struct SiteStyleEditor: View {
                     siteStyle = SiteStyle()
                     model.saveSiteStyle(nil, site: site)
                 }
-                .buttonStyle(.link)
+                .linkButtonStyle()
                 .font(.system(size: 11.5))
             }
         }

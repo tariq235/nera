@@ -110,7 +110,9 @@ struct SiteInfoView: View {
                         .disabled(PermissionPolicy.sites(in: profile).allSatisfy { $0.origin != origin })
                         .accessibilityIdentifier("siteInfo.reset")
                     Spacer()
-                    SettingsLink { Text("All Site Settings…") }
+                    #if os(macOS)
+                        SettingsLink { Text("All Site Settings…") }
+                    #endif
                 }
             }
         }

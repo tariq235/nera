@@ -280,6 +280,7 @@ struct AddressPill: View {
                 let text = DisplayURL.short(host.state.selectedTab?.url)
                 if text.isEmpty {
                     Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
                 Text(text.isEmpty ? "Search or enter URL" : text)
                     .lineLimit(1)

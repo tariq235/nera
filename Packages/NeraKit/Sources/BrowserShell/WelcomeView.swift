@@ -2,13 +2,13 @@
 // not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import BrowserCore
+import BrowserData
 import DesignSystem
 import Import
 import SwiftUI
 
 #if os(macOS)
     import AppKit
-    import BrowserData
 #endif
 
 /// The first-launch welcome: a few calm steps over a slowly moving light. Set Nera up on the Mac, turn on

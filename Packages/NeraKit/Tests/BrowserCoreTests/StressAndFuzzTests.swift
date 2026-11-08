@@ -68,10 +68,11 @@ struct StressTests {
         let roundTrip = try clock.measure { decoded = try decoder.decode(BrowserState.self, from: encoder.encode(state)) }
         #expect(decoded == state)
 
-        // Generous budgets (debug build, shared CI machine): they catch accidental O(n²) blow-ups, not jitter.
-        #expect(build < .seconds(2), "building 500 tabs took \(build)")
-        #expect(switching < .seconds(3), "5000 switches took \(switching)")
-        #expect(roundTrip < .seconds(1), "saving + loading 500 tabs took \(roundTrip)")
+        // Generous budgets (debug build, shared CI machine, about 3× slower than a developer Mac): they catch
+        // accidental O(n²) blow-ups, which cost minutes here, not jitter.
+        #expect(build < .seconds(6), "building 500 tabs took \(build)")
+        #expect(switching < .seconds(10), "5000 switches took \(switching)")
+        #expect(roundTrip < .seconds(3), "saving + loading 500 tabs took \(roundTrip)")
     }
 
     @Test func randomActionSequencesKeepTheLibraryConsistent() {
