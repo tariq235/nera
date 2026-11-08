@@ -20,7 +20,7 @@ engine for sites that need it, such as streaming video.
 
 > **Status:** early. Expect rough edges, and please report them.
 
-<p align="center"><b>Downloads:</b> the first signed release is coming soon on <a href="https://github.com/tariq235/nera/releases">Releases</a>. Until then, build it from source (below).</p>
+<p align="center"><a href="https://github.com/tariq235/nera/releases/latest"><b>Download Nera for macOS</b></a> · macOS 14 or later, Apple silicon · signed and notarized</p>
 
 ## Principles
 
@@ -45,8 +45,8 @@ Chrome extensions (Manifest V3) · per-site permissions and engines · download 
 
 ## Install
 
-When the first release is out, download it from [Releases](https://github.com/tariq235/nera/releases). Each release lists SHA-256 checksums, a software
-bill of materials and a build provenance attestation. Nera updates itself with signed updates (you can turn this off
+Download the latest disk image from [Releases](https://github.com/tariq235/nera/releases/latest), open it and drag Nera to Applications. Each release
+lists SHA-256 checksums, a software bill of materials and a build provenance attestation. Nera updates itself with signed updates (you can turn this off
 in Settings › General).
 
 ## Build from source

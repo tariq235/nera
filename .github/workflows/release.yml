@@ -174,8 +174,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Notes for users: this version's CHANGELOG section; the maintainer edits the draft before publishing.
           gh release create "$GITHUB_REF_NAME" build/out/*.dmg build/out/*.cdx.json build/out/SHA256SUMS build/out/appcast.xml \
-            --draft --generate-notes $([ "$CHANNEL" = nightly ] && echo --prerelease)
+            --draft --title "Nera $VERSION" --notes-file "$RUNNER_TEMP/notes.txt" $([ "$CHANNEL" = nightly ] && echo --prerelease)
 
       - name: Remove the signing keychain
         if: always() && env.RELEASE_KEYCHAIN != ''
