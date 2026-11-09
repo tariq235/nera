@@ -2,8 +2,13 @@
 // not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 public import BrowserCore
+import EngineKit
 import Foundation
 import Observation
+
+#if os(macOS)
+    import AppKit
+#endif
 
 /// A browser window's own Space and tab (ADR-0013).
 struct WindowSelection: Equatable {
@@ -41,6 +46,34 @@ extension AppModel {
         store.restoreSelection(spaceID: selection.spaceID, tabID: selection.tabID)
         store.send(action)
         self.selection = WindowSelection(spaceID: store.state.selectedSpaceID, tabID: store.state.selectedTabID)
+    }
+
+    /// The selected page is showing full screen (a video's full-screen button).
+    public var isPageFullscreen: Bool { pages.fullscreenPageID != nil && pages.fullscreenPageID == state.selectedTabID }
+
+    /// The selected page is full screen in this window (Chromium): the window fills the screen with the page alone.
+    var isPageFullscreenInWindow: Bool { isPageFullscreen && fullscreenPage?.showsFullscreenInOwnWindow == false }
+
+    /// The page showing HTML full screen, if it's the selected one.
+    var fullscreenPage: (any WebPage)? { isPageFullscreen ? pages.fullscreenPageID.flatMap { pages.existingPage(for: $0) } : nil }
+
+    #if os(macOS)
+        /// The engine's own full-screen window showing the selected page (WebKit), if any.
+        var engineFullscreenWindow: NSWindow? {
+            guard let page = fullscreenPage, page.showsFullscreenInOwnWindow else { return nil }
+            return page.view.window
+        }
+    #endif
+
+    /// A page left showing full screen after another tab was chosen ends its full screen.
+    func exitFullscreenOfUnselectedPage() {
+        guard let id = pages.fullscreenPageID, id != state.selectedTabID else { return }
+        pages.existingPage(for: id)?.exitFullscreen()
+    }
+
+    /// Leaves the selected page's full screen (the sidebar's "Exit Full Screen", Esc).
+    public func exitPageFullscreen() {
+        if let id = pages.fullscreenPageID { pages.existingPage(for: id)?.exitFullscreen() }
     }
 
     /// The scene id of browser windows (⌘N opens another).

@@ -69,6 +69,12 @@ import SwiftUI
         private func showPageIfFree(force: Bool = false) {
             guard let page, window != nil else { return }
             if page.superview === self { return elsewhere.removeFromSuperview() }
+            // Held by something other than a browser window (WebKit's own full-screen window): leave it there, the
+            // engine brings it back when full screen ends.
+            if let holder = page.superview, !(holder is PageContainerView) { return }
+            // The engine put a view of its own here in the page's place (WebKit's full-screen placeholder): it swaps
+            // the page back in for it, so it must stay until then.
+            if subviews.contains(where: { $0 !== elsewhere }) { return }
             let shownElsewhere = page.window != nil && page.window !== window
             if shownElsewhere && !force && page.window?.isKeyWindow == true {
                 if elsewhere.superview == nil {
@@ -108,16 +114,18 @@ import SwiftUI
     }
 #endif
 
+/// Fills the container with the page view by frame and autoresizing, not constraints: engines move their view out
+/// and back by frame (WebKit's full screen puts it in its own window), so it must carry no layout of ours.
 @MainActor
 private func attach(_ view: PlatformView, to container: PlatformView) {
     for subview in container.subviews { subview.removeFromSuperview() }
     view.removeFromSuperview()
-    view.translatesAutoresizingMaskIntoConstraints = false
+    view.translatesAutoresizingMaskIntoConstraints = true
+    #if os(macOS)
+        view.autoresizingMask = [.width, .height]
+    #else
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    #endif
+    view.frame = container.bounds
     container.addSubview(view)
-    NSLayoutConstraint.activate([
-        view.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-        view.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-        view.topAnchor.constraint(equalTo: container.topAnchor),
-        view.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-    ])
 }

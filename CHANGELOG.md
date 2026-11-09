@@ -4,6 +4,18 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.4 — 2026-11-09
+
+- **Video full screen:** YouTube, X and other videos now fill the whole screen; Esc returns to the window. Move the
+  pointer to the left edge and the sidebar slides in, with an Exit Full Screen button (on X too).
+- **Fixed:** X's videos could turn white in full screen, and the page stayed black after leaving it.
+- **Fixed:** closing a tab that's playing sound now silences it at once (on X it played on for 2–3 seconds).
+- **Command bar:** typing completes the site's address in place (you → youtube.com); Return opens it, → or Tab
+  takes the completion. Results come in the order you'd expect: the site, the search, this Space's tabs, history,
+  then tabs in other Spaces. A lighter, frosted look.
+- **Fixed:** Nera could open without a window after being force-quit.
+- **Fixed:** double-clicking the empty strip above the start page didn't zoom the window.
+
 ## 0.1.3 — 2026-11-09
 
 - **Move between tabs from the keyboard:** ⇧⌘] / ⇧⌘[, ⌥⌘↓ / ⌥⌘↑ and ⌃Tab / ⌃⇧Tab.

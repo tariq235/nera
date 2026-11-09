@@ -159,6 +159,7 @@ final class CEFPage: NSObject, ChromiumPageHandle {
     func goForward() { bridge.goForward() }
     func reload() { bridge.reload() }
     func stop() { bridge.stop() }
+    func exitFullscreen() { bridge.exitFullscreen() }
     func setZoomFactor(_ factor: Double) { bridge.setZoomFactor(factor) }
     func setMuted(_ muted: Bool) { bridge.setMuted(muted) }
     func find(_ text: String, forward: Bool, matchCase: Bool, findNext: Bool) {
@@ -202,6 +203,7 @@ extension CEFPage: @preconcurrency NRAChromiumPageDelegate {
     }
 
     func chromiumPage(_ page: NRAChromiumPage, titleChanged title: String) { events?.titleChanged(title) }
+    func chromiumPage(_ page: NRAChromiumPage, fullscreen: Bool) { events?.fullscreenChanged(fullscreen) }
     func chromiumPage(_ page: NRAChromiumPage, favicon png: Data) { events?.faviconChanged(png) }
     func chromiumPage(
         _ page: NRAChromiumPage, webAuthn kind: String, json: String, frameURL: String, topURL: String,

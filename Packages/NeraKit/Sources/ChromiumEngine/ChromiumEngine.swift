@@ -127,6 +127,7 @@ final class ChromiumPage: WebPage {
     func goForward() { handle.goForward() }
     func reload() { handle.reload() }
     func stop() { handle.stop() }
+    func exitFullscreen() { handle.exitFullscreen() }
 
     func setZoom(_ factor: Double) {
         handle.setZoomFactor(factor)
@@ -183,6 +184,9 @@ final class ChromiumPage: WebPage {
         isClosed = true
         findContinuation?.resume(returning: FindResult(matchFound: false))
         findContinuation = nil
+        // Silence it first: Chromium gives a closing page time to run its unload code (up to about half a second),
+        // and its sound would play on until then. Muting takes it off the speakers at once.
+        handle.setMuted(true)
         handle.close()
         delegate = nil
     }
@@ -276,6 +280,8 @@ extension ChromiumPage: ChromiumPageEvents {
     }
 
     func faviconChanged(_ png: Data) { update { $0.favicon = png } }
+
+    func fullscreenChanged(_ fullscreen: Bool) { emit(.fullscreenChanged(fullscreen)) }
 
     func webAuthnRequested(kind: String, json: String, frameURL: String, topURL: String, reply: @escaping @MainActor (Bool, String) -> Void)
     {

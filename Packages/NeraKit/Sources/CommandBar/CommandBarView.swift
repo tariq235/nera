@@ -17,11 +17,13 @@ public struct CommandBarView: View {
         self.host = host
         self.leadingInset = leadingInset
     }
-    @Environment(\.colorScheme) private var colorScheme
-    @State private var text = ""
+    @Environment(\.colorScheme) var colorScheme
+    @State var text = ""
     @State private var highlighted = 0
     /// The text the bar opened with (⌘L shows the current address): not announced, VoiceOver reads the field itself.
     @State private var openedWith: String?
+    /// The last edit removed text: no inline completion until the next character is typed.
+    @State var lastEditWasDeletion = false
     @FocusState private var isFocused: Bool
 
     struct Suggestion: Identifiable, Equatable {
@@ -40,46 +42,61 @@ public struct CommandBarView: View {
         var url: URL?
     }
 
+    /// Ranked like Arc's: the completed site, the search, this Space's tabs, history, then other Spaces' tabs.
     private var suggestions: [Suggestion] {
         var out: [Suggestion] = []
         let engine = host.state.settings.searchEngine
         let query = text.trimmingCharacters(in: .whitespaces)
-        let open = host.state.spaces.flatMap { host.state.orderedTabs(in: $0) } + (host.state.currentProfile?.favorites ?? [])
         let isNewTab = host.commandBarDisposition == .newTab
-        let tabs = OpenTabSearch.matches(query, in: open).filter { $0.tab.id != host.state.selectedTabID || isNewTab }
-        func switchRow(_ tab: BrowserCore.Tab) -> Suggestion {
+        let selected = host.state.selectedTabID
+        let space = host.state.selectedSpace
+        let here = space.map { host.state.orderedTabs(in: $0) } ?? []
+        let elsewhere = host.state.spaces.filter { $0.id != space?.id }.flatMap { s in host.state.orderedTabs(in: s).map { (s, $0) } }
+        func switchRow(_ tab: BrowserCore.Tab, in other: Space? = nil) -> Suggestion {
             .init(
-                id: tab.id.uuidString, title: tab.displayTitle, subtitle: "Switch to Tab · \(DisplayURL.short(tab.url))",
+                id: tab.id.uuidString, title: tab.displayTitle,
+                subtitle: other.map { "Switch to Tab · \($0.title)" } ?? "Switch to Tab · \(DisplayURL.short(tab.url))",
                 symbol: "arrow.right.square", kind: .switchTo(tab.id), url: tab.url)
         }
-        // A new tab (⌘T) for a site that's already open: going to that tab comes first (Return), not a duplicate.
-        // Editing the current address (⌘L) always navigates first.
-        let strong = host.commandBarDisposition == .newTab ? tabs.first(where: \.isStrong) : nil
-        if let strong { out.append(switchRow(strong.tab)) }
+        if query.isEmpty {
+            // Nothing typed yet: this Space's open tabs, one keystroke away.
+            for tab in here where out.count < 5 && (tab.id != selected || isNewTab) { out.append(switchRow(tab)) }
+            return out
+        }
+        let history = host.historySuggestions(for: query.lowercased())
+        var shown = Set<String>()
+        if let site = completion, let url = URL(string: "https://\(site)/") {
+            let title = history.first { SiteCompletion.site(of: $0.url) == site && !$0.title.isEmpty }?.title ?? site
+            out.append(.init(id: "site", title: title, subtitle: site, symbol: "globe", kind: .open(url), url: url))
+            shown.insert(site + "/")
+        }
         switch Omnibox.parse(text, engine: engine) {
-        case .url(let url)?:
+        case .url(let url)? where completion == nil:
             out.append(.init(id: "open", title: url.absoluteString, subtitle: "Open", symbol: "globe", kind: .open(url)))
         case .search(let q, let url)?:
             out.append(.init(id: "search", title: q, subtitle: "Search \(engine.name)", symbol: "magnifyingglass", kind: .search(url)))
-        case nil:
+        default:
             break
         }
-        for match in tabs where match.tab.id != strong?.tab.id && out.count < 8 { out.append(switchRow(match.tab)) }
-        if query.isEmpty, let space = host.state.selectedSpace {
-            // Nothing typed yet: the Space's open tabs, one keystroke away.
-            for tab in host.state.orderedTabs(in: space) where out.count < 5 && (tab.id != host.state.selectedTabID || isNewTab) {
-                out.append(switchRow(tab))
-            }
+        for match in OpenTabSearch.matches(query, in: here) where out.count < 8 && (match.tab.id != selected || isNewTab) {
+            out.append(switchRow(match.tab))
+            shown.insert(match.tab.url?.absoluteString ?? "")
         }
-        if !query.isEmpty {
-            let shown = Set(open.compactMap(\.url))
-            for entry in host.historySuggestions(for: query.lowercased()) where out.count < 8 && !shown.contains(entry.url) {
-                out.append(
-                    .init(
-                        id: "history:" + entry.url.absoluteString, title: entry.title.isEmpty ? DisplayURL.short(entry.url) : entry.title,
-                        subtitle: "\(entry.isBookmark ? "Bookmark" : "History") · \(DisplayURL.short(entry.url))",
-                        symbol: entry.isBookmark ? "star" : "clock.arrow.circlepath", kind: .history(entry.url), url: entry.url))
-            }
+        for entry in history where out.count < 7 {
+            let key = entry.url.absoluteString
+            guard !shown.contains(key),
+                !(SiteCompletion.site(of: entry.url).map { shown.contains($0 + "/") && entry.url.path.count <= 1 } ?? false)
+            else { continue }
+            shown.insert(key)
+            out.append(
+                .init(
+                    id: "history:" + key, title: entry.title.isEmpty ? DisplayURL.short(entry.url) : entry.title,
+                    subtitle: "\(entry.isBookmark ? "Bookmark" : "History") · \(DisplayURL.short(entry.url))",
+                    symbol: entry.isBookmark ? "star" : "clock.arrow.circlepath", kind: .history(entry.url), url: entry.url))
+        }
+        let others = OpenTabSearch.matches(query, in: elsewhere.map(\.1))
+        for match in others where out.count < 8 {
+            out.append(switchRow(match.tab, in: elsewhere.first { $0.1.id == match.tab.id }?.0))
         }
         return out
     }
@@ -115,7 +132,12 @@ public struct CommandBarView: View {
             await Task.yield()
             isFocused = true
         }
-        .onChange(of: text) { highlighted = 0 }
+        .onChange(of: text) { old, new in
+            highlighted = 0
+            lastEditWasDeletion = new.count < old.count
+        }
+        .onKeyPress(.rightArrow) { acceptCompletion() }
+        .onKeyPress(.tab) { acceptCompletion() }
         .task(id: text) {
             // Once typing pauses, VoiceOver hears the new list (A11Y-005).
             guard text != openedWith, (try? await Task.sleep(for: .milliseconds(600))) != nil else { return }
@@ -140,11 +162,10 @@ public struct CommandBarView: View {
     private var panel: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .medium)).foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                TextField(host.commandBarDisposition == .newTab ? "Search or enter URL…" : "Edit URL or search…", text: $text)
+                fieldIcon
+                TextField(host.commandBarDisposition == .newTab ? "Search or Enter URL…" : "Edit URL or search…", text: $text)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 17))
+                    .font(.system(size: 19))
                     .accessibilityLabel("Address and search")
                     .focused($isFocused)
                     .autocorrectionDisabled()
@@ -154,9 +175,21 @@ public struct CommandBarView: View {
                     #endif
                     .onSubmit(commit)
                     .accessibilityIdentifier("commandBar.field")
+                    // The inline completion, in grey after what's typed (→ or Tab takes it; Return opens it).
+                    .overlay(alignment: .leading) {
+                        if let site = completion, site.count > text.count {
+                            HStack(spacing: 0) {
+                                Text(text).hidden()
+                                Text(String(site.dropFirst(text.count))).foregroundStyle(.tertiary)
+                            }
+                            .font(.system(size: 19))
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                        }
+                    }
             }
             .padding(.horizontal, 20)
-            .frame(height: 56)
+            .frame(height: 62)
             if !suggestions.isEmpty {
                 Rectangle().fill(.primary.opacity(0.08)).frame(height: 1)
                 VStack(spacing: 2) {
@@ -177,56 +210,21 @@ public struct CommandBarView: View {
                 .accessibilityLabel("Suggestions")
             }
         }
-        .background(colorScheme == .dark ? Color(white: 0.12) : Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.primary.opacity(colorScheme == .dark ? 0.12 : 0.06)))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.22), radius: 40, y: 18)
+        // Frosted glass, the page faintly showing through.
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(
+                    colorScheme == .dark ? Color.black.opacity(0.25) : Color.white.opacity(0.55))
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.primary.opacity(colorScheme == .dark ? 0.14 : 0.08)))
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.16), radius: 50, y: 22)
         #if os(macOS)
             // Esc, or a click anywhere outside the panel (the page, the sidebar), closes it; the click still goes
             // through, so clicking a tab in the sidebar opens it.
             .background(OutsideClickMonitor(dismiss: dismiss))
         #endif
-    }
-
-    /// One suggestion: the site's icon, its title (and address), and "Switch to Tab" for open tabs.
-    private func row(_ s: Suggestion, isHighlighted: Bool) -> some View {
-        let accent = Theme.accent(for: host.commandBarTheme)
-        let isSwitch = if case .switchTo = s.kind { true } else { false }
-        return HStack(spacing: 10) {
-            if let url = s.url {
-                SiteIcon(url: url, size: 14, png: host.commandBarIcon(for: url))
-            } else {
-                Image(systemName: s.symbol).font(.system(size: 13, weight: .medium)).frame(width: 18, height: 18)
-                    .accessibilityHidden(true)
-            }
-            HStack(spacing: 4) {
-                Text(s.title).fontWeight(.medium).lineLimit(1)
-                if !isSwitch, let detail = s.subtitle.split(separator: "·").last.map({ $0.trimmingCharacters(in: .whitespaces) }),
-                    s.url != nil
-                {
-                    Text("— \(detail)").foregroundStyle(isHighlighted ? Color.white.opacity(0.75) : Color.secondary).lineLimit(1)
-                }
-            }
-            .font(.system(size: 13.5))
-            Spacer(minLength: 12)
-            if isSwitch {
-                Text("Switch to Tab").font(.system(size: 12.5, weight: .medium))
-                    .foregroundStyle(isHighlighted ? Color.white : Color.secondary)
-                Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold))
-                    .frame(width: 22, height: 22)
-                    .foregroundStyle(isHighlighted ? accent : Color.secondary)
-                    .background(
-                        isHighlighted ? Color.white : Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    )
-                    .accessibilityHidden(true)
-            } else if s.url == nil {
-                Text(s.subtitle).font(.system(size: 12.5)).foregroundStyle(isHighlighted ? Color.white.opacity(0.85) : Color.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .foregroundStyle(isHighlighted ? Color.white : Color.primary)
-        .padding(.horizontal, 10)
-        .frame(height: 38)
-        .background(isHighlighted ? accent : .clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     private func commit() {

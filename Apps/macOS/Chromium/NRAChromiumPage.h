@@ -45,6 +45,8 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
 - (void)chromiumPage:(NRAChromiumPage *)page didFinishURL:(NSString *)url httpStatus:(int)status;
 - (void)chromiumPage:(NRAChromiumPage *)page didFailURL:(NSString *)url code:(int)code text:(NSString *)text;
 - (void)chromiumPage:(NRAChromiumPage *)page titleChanged:(NSString *)title;
+/// The page entered or left HTML full screen (a video's full-screen button). Nera makes the window full screen.
+- (void)chromiumPage:(NRAChromiumPage *)page fullscreen:(BOOL)fullscreen;
 /// A WebAuthn request (`create`, `get` or `available`) from a frame. `reply(ok, payload)`: the response JSON,
 /// or `"ErrorName|message"`.
 - (void)chromiumPage:(NRAChromiumPage *)page
@@ -105,6 +107,8 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
 - (void)loadURL:(NSString *)url;
 - (void)goBack;
 - (void)goForward;
+/// Ends the page's HTML full screen (the window left full screen some other way).
+- (void)exitFullscreen;
 - (void)reload;
 - (void)stop;
 /// 1.0 = 100%.

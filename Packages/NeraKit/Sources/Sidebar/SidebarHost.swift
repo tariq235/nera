@@ -38,6 +38,10 @@ public protocol SidebarHost: AnyObject {
     var spaceSwipeOffset: CGFloat { get }
     /// A private window: one list of private tabs, no Spaces, Favorites or pinned tabs.
     var isPrivateSession: Bool { get }
+    /// The page is showing full screen (a video): the sidebar slides in over it and offers to leave.
+    var isPageFullscreen: Bool { get }
+    /// Leaves the page's full screen.
+    func exitPageFullscreen()
 }
 
 /// What the sidebar's navigation buttons show.
@@ -60,4 +64,8 @@ public struct PageNavigation: Equatable, Sendable {
 extension SidebarHost {
     /// Not private unless the host says so.
     public var isPrivateSession: Bool { false }
+    /// No full screen unless the host says so.
+    public var isPageFullscreen: Bool { false }
+    /// Nothing to leave by default.
+    public func exitPageFullscreen() {}
 }

@@ -144,41 +144,7 @@ public struct RootView: View {
         }
     #endif
 
-    private var sidebar: some View {
-        VStack(spacing: 0) {
-            SidebarView(
-                host: model, accessory: AnyView(SidebarAccessories(model: model)),
-                siteInfo: { AnyView(SiteInfoView(model: model)) },
-                nowPlaying: AnyView(
-                    VStack(spacing: 8) {
-                        UpdateCard(model: model)
-                        MiniPlayer(model: model)
-                    })
-            )
-        }
-    }
-
-    #if os(macOS)
-        /// With the sidebar hidden, resting the pointer on the window's left edge slides it in over the page;
-        /// it slides away when the pointer leaves it.
-        @ViewBuilder private var peekingSidebar: some View {
-            if model.isSidebarPeeking {
-                sidebar
-                    .frame(width: sidebarWidth)
-                    .padding(.top, 4)
-                    .background(Theme.background(for: model.state.selectedSpace?.theme))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.18)))
-                    .shadow(color: .black.opacity(0.28), radius: 24, x: 6)
-                    .padding(.vertical, 6).padding(.leading, 6)
-                    .onHover { inside in if !inside { model.isSidebarPeeking = false } }
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            } else {
-                Color.clear.frame(width: 6).contentShape(Rectangle())
-                    .onHover { inside in if inside { model.isSidebarPeeking = true } }
-            }
-        }
-    #endif
+    private var sidebar: some View { BrowserSidebar(model: model) }
 
     #if os(macOS)
         /// The page, with its rounded corners and shadow.
@@ -188,10 +154,17 @@ public struct RootView: View {
                 .overlay(alignment: model.pageSwipeProgress < 0 ? .leading : .trailing) {
                     if model.pageSwipeProgress != 0 { SwipeArrow(progress: model.pageSwipeProgress) }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06)))
-                .shadow(color: .black.opacity(0.14), radius: 6, y: 2)
+                .clipShape(RoundedRectangle(cornerRadius: isPageFullscreen ? 0 : Self.pageRadius, style: .continuous))
+                .overlay {
+                    if !isPageFullscreen {
+                        RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06))
+                    }
+                }
+                .shadow(color: .black.opacity(isPageFullscreen ? 0 : 0.14), radius: 6, y: 2)
         }
+
+        /// The selected page is showing HTML full screen (a video's full-screen button): it fills the screen alone.
+        private var isPageFullscreen: Bool { model.isPageFullscreenInWindow }
     #endif
 
     @ViewBuilder private var layout: some View {
@@ -203,8 +176,14 @@ public struct RootView: View {
             // narrow size once the sidebar is in. So the engine lays the page out once per toggle, not per frame.
             ZStack(alignment: .leading) {
                 page
-                    .padding(.leading, pageBesideSidebar ? sidebarWidth : Self.pageInset)
-                    .padding([.top, .bottom, .trailing], Self.pageInset)
+                    .padding(.leading, isPageFullscreen ? 0 : pageBesideSidebar ? sidebarWidth : Self.pageInset)
+                    .padding([.top, .bottom, .trailing], isPageFullscreen ? 0 : Self.pageInset)
+                    // The strip above the page is the title bar (drag to move, double-click to zoom). It's in front:
+                    // scroll views in the page (the start page's) reach up under the title bar and would take its
+                    // clicks.
+                    .overlay(alignment: .top) {
+                        if !isPageFullscreen { TitleBarArea().frame(height: Self.pageInset) }
+                    }
                     .offset(x: sidebarShown && !pageBesideSidebar ? sidebarWidth - Self.pageInset : 0)
                     // Changing size or start position is never animated; only the slide is.
                     .transaction(value: pageBesideSidebar) { $0.animation = nil }
@@ -213,10 +192,10 @@ public struct RootView: View {
                 // scroll position.
                 sidebar
                     .frame(width: sidebarWidth)
-                    .offset(x: sidebarShown ? 0 : -sidebarWidth)
+                    .offset(x: sidebarShown && !isPageFullscreen ? 0 : -sidebarWidth)
                     .allowsHitTesting(sidebarShown)
                     .accessibilityHidden(!sidebarShown)
-                if sidebarShown && pageBesideSidebar { resizeHandle }
+                if sidebarShown && pageBesideSidebar && !isPageFullscreen { resizeHandle }
             }
             .onChange(of: model.isSidebarVisible) { _, visible in
                 if visible {
@@ -234,14 +213,23 @@ public struct RootView: View {
                 sidebarShown = model.isSidebarVisible
                 pageBesideSidebar = model.isSidebarVisible
             }
-            .overlay(alignment: .leading) { if !model.isSidebarVisible { peekingSidebar } }
+            .onChange(of: model.isPageFullscreen) { model.isSidebarPeeking = false }  // full screen starts and ends clean
+            // Choosing another tab from the sidebar over a full-screen video ends that video's full screen.
+            .onChange(of: model.state.selectedTabID) { model.exitFullscreenOfUnselectedPage() }
+            // With the sidebar hidden, or over a full-screen video, the pointer at the left edge slides it in.
+            .overlay(alignment: .leading) {
+                if !model.isSidebarVisible || isPageFullscreen { PeekingSidebar(model: model, width: sidebarWidth) }
+            }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
             // drag to move, double-click to zoom. Swipes are watched without taking any clicks.
             .background {
                 ZStack {
                     TitleBarArea()
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
-                    WindowButtons(visible: sidebarShown || model.isSidebarPeeking)
+                    WindowButtons(visible: (sidebarShown || model.isSidebarPeeking) && !isPageFullscreen)
+                    FullScreenWindow(isOn: isPageFullscreen) { model.exitPageFullscreen() }
+                    EngineFullscreenSidebar(
+                        model: model, window: model.engineFullscreenWindow, isPeeking: model.isSidebarPeeking, width: sidebarWidth)
                     TabKeys(model: model)
                 }
             }
@@ -273,13 +261,12 @@ struct ContentArea: View {
             } else if panes.count > 1, let split = model.state.selectedSplit {
                 SplitViewContent(model: model, panes: panes, axis: split.axis)
             } else if let page = model.selectedPage {
-                VStack(spacing: 0) {
-                    PageProgressBar(page: page)
-                    WebViewHost(page: page, isAccessible: model.currentRequest == nil && model.currentDangerousSite == nil)
-                        .overlay { DangerousSiteOverlay(model: model, pageID: page.id) }
-                        .id(page.id)
-                        .accessibilityHidden(model.currentRequest != nil)
-                }
+                WebViewHost(page: page, isAccessible: model.currentRequest == nil && model.currentDangerousSite == nil)
+                    .overlay { DangerousSiteOverlay(model: model, pageID: page.id) }
+                    .id(page.id)
+                    .accessibilityHidden(model.currentRequest != nil)
+                    // Drawn over the page's top edge, so the page fills the whole area (full screen too).
+                    .overlay(alignment: .top) { PageProgressBar(page: page) }
             } else if model.isPrivate {
                 Rectangle().fill(.background)  // nothing kept, nothing suggested: an empty page
             } else {
@@ -486,59 +473,3 @@ struct SidebarAccessories: View {
         }
     }
 }
-
-#if os(macOS)
-    /// A private window opens at once (no zoom-in), dark from its first frame (no white flash), with exactly the
-    /// size and place of the browser window behind it: it's a full browser window, not a small one.
-    struct MatchMainWindowFrame: View {
-        var body: some View { MatchFrontWindowFrame(offset: .zero, isDark: true) }
-    }
-
-    /// Opens a window at once with the size of the browser window in front, moved by `offset` (nil: leave the
-    /// window where it is). It stays invisible until it's in place, so it never appears somewhere else first.
-    struct MatchFrontWindowFrame: NSViewRepresentable {
-        var offset: CGSize?
-        var isDark = false
-
-        func makeNSView(context: Context) -> NSView {
-            let view = Matcher()
-            view.offset = offset
-            view.isDark = isDark
-            return view
-        }
-
-        func updateNSView(_ nsView: NSView, context: Context) {}
-
-        final class Matcher: NSView {
-            var offset: CGSize?
-            var isDark = false
-            private var placed = false
-
-            override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-            override func viewDidMoveToWindow() {
-                super.viewDidMoveToWindow()
-                guard let window, let offset, !placed else { return }
-                placed = true
-                window.animationBehavior = .none
-                if isDark {
-                    window.appearance = NSAppearance(named: .darkAqua)
-                    window.backgroundColor = NSColor(white: 0.13, alpha: 1)
-                }
-                guard
-                    let front = NSApp.orderedWindows.first(where: {
-                        $0 !== window && $0.isVisible && $0.canBecomeMain && $0.frame.width >= 820
-                    })
-                else { return }
-                let frame = front.frame.offsetBy(dx: offset.width, dy: offset.height)
-                window.setFrame(frame, display: false)
-                // AppKit staggers new windows when it shows them: keep it invisible until it's in place.
-                window.alphaValue = 0
-                DispatchQueue.main.async {
-                    window.setFrame(frame, display: true)
-                    window.alphaValue = 1
-                }
-            }
-        }
-    }
-#endif

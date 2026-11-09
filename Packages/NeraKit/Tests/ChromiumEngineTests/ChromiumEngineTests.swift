@@ -231,6 +231,7 @@ struct ChromiumAdapterTests {
         let (page, handle) = makePage()
         page.close()
         #expect(handle.closed)
+        #expect(handle.muted, "silenced before Chromium runs the page's unload code")
         handle.events?.didCommit(url: "https://example.com/")
         #expect(handle.events?.shouldNavigate(to: "https://example.com/", mainFrame: true, trigger: .userTyped) == false)
         var replies: [Bool] = []
@@ -315,6 +316,8 @@ final class FakeHandle: ChromiumPageHandle {
     func goForward() {}
     func reload() {}
     func stop() {}
+    var exitedFullscreen = false
+    func exitFullscreen() { exitedFullscreen = true }
     func setZoomFactor(_ factor: Double) { zoom = factor }
     func setMuted(_ muted: Bool) { self.muted = muted }
     func find(_ text: String, forward: Bool, matchCase: Bool, findNext: Bool) {

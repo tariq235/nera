@@ -53,6 +53,10 @@ public final class WebKitEngine: BrowserEngine {
         config.preferences.javaScriptCanOpenWindowsAutomatically = false  // popups need a gesture (SR-015)
         config.upgradeKnownHostsToHTTPS = true
         config.mediaTypesRequiringUserActionForPlayback = .audio
+        #if DEBUG
+            // Debug media checks only (how fast sound stops when a tab closes): pages play without a click.
+            if ProcessInfo.processInfo.environment["NERA_AUTOPLAY"] != nil { config.mediaTypesRequiringUserActionForPlayback = [] }
+        #endif
         #if os(macOS)
             config.preferences.isElementFullscreenEnabled = true
         #else
