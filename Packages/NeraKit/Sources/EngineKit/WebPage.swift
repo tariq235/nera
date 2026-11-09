@@ -38,6 +38,10 @@ public protocol WebPage: AnyObject, Observable {
     /// Ends the page's HTML full screen (the window left full screen some other way).
     func exitFullscreen()
 
+    /// HTML full screen is shown in a window of the engine's own (WebKit), not by the browser window filling the
+    /// screen with the page (Chromium).
+    var showsFullscreenInOwnWindow: Bool { get }
+
     /// Sets page zoom (1.0 = 100%). No-op without ``EngineCapability/pageZoom``.
     func setZoom(_ factor: Double)
 
@@ -172,4 +176,7 @@ public struct FindResult: Equatable, Sendable {
 extension WebPage {
     /// Engines without HTML full screen have nothing to end.
     public func exitFullscreen() {}
+
+    /// Engines show HTML full screen in the browser window unless they say otherwise.
+    public var showsFullscreenInOwnWindow: Bool { false }
 }

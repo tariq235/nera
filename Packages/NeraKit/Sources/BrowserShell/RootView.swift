@@ -144,41 +144,7 @@ public struct RootView: View {
         }
     #endif
 
-    private var sidebar: some View {
-        VStack(spacing: 0) {
-            SidebarView(
-                host: model, accessory: AnyView(SidebarAccessories(model: model)),
-                siteInfo: { AnyView(SiteInfoView(model: model)) },
-                nowPlaying: AnyView(
-                    VStack(spacing: 8) {
-                        UpdateCard(model: model)
-                        MiniPlayer(model: model)
-                    })
-            )
-        }
-    }
-
-    #if os(macOS)
-        /// With the sidebar hidden, resting the pointer on the window's left edge slides it in over the page;
-        /// it slides away when the pointer leaves it.
-        @ViewBuilder private var peekingSidebar: some View {
-            if model.isSidebarPeeking {
-                sidebar
-                    .frame(width: sidebarWidth)
-                    .padding(.top, 4)
-                    .background(Theme.background(for: model.state.selectedSpace?.theme))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(.white.opacity(0.18)))
-                    .shadow(color: .black.opacity(0.28), radius: 24, x: 6)
-                    .padding(.vertical, 6).padding(.leading, 6)
-                    .onHover { inside in if !inside { model.isSidebarPeeking = false } }
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            } else {
-                Color.clear.frame(width: 6).contentShape(Rectangle())
-                    .onHover { inside in if inside { model.isSidebarPeeking = true } }
-            }
-        }
-    #endif
+    private var sidebar: some View { BrowserSidebar(model: model) }
 
     #if os(macOS)
         /// The page, with its rounded corners and shadow.
@@ -198,7 +164,7 @@ public struct RootView: View {
         }
 
         /// The selected page is showing HTML full screen (a video's full-screen button): it fills the screen alone.
-        private var isPageFullscreen: Bool { model.isPageFullscreen }
+        private var isPageFullscreen: Bool { model.isPageFullscreenInWindow }
     #endif
 
     @ViewBuilder private var layout: some View {
@@ -241,9 +207,13 @@ public struct RootView: View {
                 sidebarShown = model.isSidebarVisible
                 pageBesideSidebar = model.isSidebarVisible
             }
-            .onChange(of: isPageFullscreen) { model.isSidebarPeeking = false }  // full screen starts and ends clean
+            .onChange(of: model.isPageFullscreen) { model.isSidebarPeeking = false }  // full screen starts and ends clean
+            // Choosing another tab from the sidebar over a full-screen video ends that video's full screen.
+            .onChange(of: model.state.selectedTabID) { model.exitFullscreenOfUnselectedPage() }
             // With the sidebar hidden, or over a full-screen video, the pointer at the left edge slides it in.
-            .overlay(alignment: .leading) { if !model.isSidebarVisible || isPageFullscreen { peekingSidebar } }
+            .overlay(alignment: .leading) {
+                if !model.isSidebarVisible || isPageFullscreen { PeekingSidebar(model: model, width: sidebarWidth) }
+            }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
             // drag to move, double-click to zoom. Swipes are watched without taking any clicks.
             .background {
@@ -252,6 +222,8 @@ public struct RootView: View {
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
                     WindowButtons(visible: (sidebarShown || model.isSidebarPeeking) && !isPageFullscreen)
                     FullScreenWindow(isOn: isPageFullscreen) { model.exitPageFullscreen() }
+                    EngineFullscreenSidebar(
+                        model: model, window: model.engineFullscreenWindow, isPeeking: model.isSidebarPeeking, width: sidebarWidth)
                     TabKeys(model: model)
                 }
             }
@@ -283,13 +255,12 @@ struct ContentArea: View {
             } else if panes.count > 1, let split = model.state.selectedSplit {
                 SplitViewContent(model: model, panes: panes, axis: split.axis)
             } else if let page = model.selectedPage {
-                VStack(spacing: 0) {
-                    PageProgressBar(page: page)
-                    WebViewHost(page: page, isAccessible: model.currentRequest == nil && model.currentDangerousSite == nil)
-                        .overlay { DangerousSiteOverlay(model: model, pageID: page.id) }
-                        .id(page.id)
-                        .accessibilityHidden(model.currentRequest != nil)
-                }
+                WebViewHost(page: page, isAccessible: model.currentRequest == nil && model.currentDangerousSite == nil)
+                    .overlay { DangerousSiteOverlay(model: model, pageID: page.id) }
+                    .id(page.id)
+                    .accessibilityHidden(model.currentRequest != nil)
+                    // Drawn over the page's top edge, so the page fills the whole area (full screen too).
+                    .overlay(alignment: .top) { PageProgressBar(page: page) }
             } else if model.isPrivate {
                 Rectangle().fill(.background)  // nothing kept, nothing suggested: an empty page
             } else {

@@ -140,7 +140,7 @@ final class WebKitPage: NSObject, WebPage {
         delegate?.pageDidChangeState(self)
     }
 
-    private func emit(_ event: PageEvent) {
+    func emit(_ event: PageEvent) {
         guard !isClosed else { return }
         delegate?.page(self, didEmit: event)
     }
@@ -190,6 +190,7 @@ final class WebKitPage: NSObject, WebPage {
             webView.observe(\.hasOnlySecureContent) { wv, _ in handler(wv) },
             webView.observe(\.cameraCaptureState) { wv, _ in handler(wv) },
             webView.observe(\.microphoneCaptureState) { wv, _ in handler(wv) },
+            fullscreenObservation(),
         ]
     }
 

@@ -91,6 +91,12 @@ public final class FakePage: WebPage {
     public func goForward() {}
     /// No-op.
     public func reload() {}
+    /// Whether the page shows HTML full screen in a window of its own (like WebKit); settable.
+    public var showsFullscreenInOwnWindow = false
+    /// Counts the call (``exitFullscreenCount``).
+    public func exitFullscreen() { exitFullscreenCount += 1 }
+    /// How many times ``exitFullscreen()`` was called.
+    public private(set) var exitFullscreenCount = 0
     /// Counts the call (``stopCount``).
     public func stop() { stopCount += 1 }
     /// How many times ``stop()`` was called.
