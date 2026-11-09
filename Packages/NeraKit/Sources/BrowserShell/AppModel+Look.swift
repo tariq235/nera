@@ -5,6 +5,7 @@ public import BrowserCore
 public import Foundation
 import Import
 public import Sidebar
+public import SwiftUI
 
 #if os(macOS)
     import AppKit
@@ -91,4 +92,27 @@ extension AppModel {
 
     /// The cached icon for a site.
     public func favicon(forURL url: URL) -> Data? { url.host().flatMap(favicons.icon(forHost:)) }
+
+    /// Light or dark: Settings › General › Appearance (the Mac's setting by default); private windows are dark.
+    public var preferredColorScheme: ColorScheme? {
+        if isPrivate { return .dark }
+        let fromSpace: ColorScheme? =
+            switch state.selectedSpace?.theme.appearance {
+            case .light?: .light
+            case .dark?: .dark
+            default: nil
+            }
+        switch state.settings.appearance {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        case .perSpace: return fromSpace
+        }
+    }
+
+    /// The command bar's icons: the site's favicon.
+    public func commandBarIcon(for url: URL?) -> Data? { url.flatMap(favicon(forURL:)) }
+
+    /// The command bar's highlight follows the Space's color.
+    public var commandBarTheme: SpaceTheme? { displayedTheme }
 }

@@ -83,7 +83,7 @@ import SwiftUI
 
             private func handle(_ event: NSEvent) -> NSEvent? {
                 guard let window = view?.window, event.window === window, event.hasPreciseScrollingDeltas,
-                    event.momentumPhase.isEmpty, !model.isCommandBarPresented, !model.isWelcomePresented
+                    event.momentumPhase.isEmpty, !model.isWelcomePresented  // works with the command bar open too
                 else { return event }
                 switch event.phase {
                 case .began:

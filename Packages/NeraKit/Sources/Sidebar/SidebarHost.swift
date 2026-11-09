@@ -36,6 +36,8 @@ public protocol SidebarHost: AnyObject {
     func newSpace()
     /// How far a two-finger swipe on the sidebar has dragged the Space sideways (points; 0 when idle).
     var spaceSwipeOffset: CGFloat { get }
+    /// A private window: one list of private tabs, no Spaces, Favorites or pinned tabs.
+    var isPrivateSession: Bool { get }
 }
 
 /// What the sidebar's navigation buttons show.
@@ -53,4 +55,9 @@ public struct PageNavigation: Equatable, Sendable {
         self.canGoForward = canGoForward
         self.isLoading = isLoading
     }
+}
+
+extension SidebarHost {
+    /// Not private unless the host says so.
+    public var isPrivateSession: Bool { false }
 }

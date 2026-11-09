@@ -234,6 +234,38 @@ final class SmokeTests: XCTestCase {
         wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
     }
 
+    /// The command bar closes with Esc, and ⌘W closes what's in front: the bar, then the tab, never the
+    /// window (FEAT-051, FEAT-052).
+    func testEscAndCommandWCloseTheFrontmostThing() {
+        openViaCommandBar("data:text/html,<title>Keep Window</title>")
+        XCTAssertTrue(sidebarTab("Keep Window").waitForExistence(timeout: 15))
+        let field = app.textFields["commandBar.field"]
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        app.typeKey(.escape, modifierFlags: [])
+        XCTAssertTrue(field.waitForNonExistence(timeout: 3), "Esc closes the command bar")
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(field.waitForNonExistence(timeout: 3), "⌘W closes the command bar first")
+        XCTAssertTrue(sidebarTab("Keep Window").exists, "…and not the tab")
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(sidebarTab("Keep Window").waitForNonExistence(timeout: 5), "then ⌘W closes the tab")
+        XCTAssertTrue(app.windows.firstMatch.exists, "the window stays open")
+    }
+
+    /// A private window opens with the command bar ready, and ⌘W closes it while it's empty (FEAT-053).
+    func testEmptyPrivateWindowClosesWithCommandW() {
+        let windows = app.windows.count
+        app.typeKey("n", modifierFlags: [.command, .shift])
+        let more = NSPredicate { _, _ in self.app.windows.count == windows + 1 }
+        wait(for: [XCTNSPredicateExpectation(predicate: more, object: nil)], timeout: 5)
+        XCTAssertTrue(app.textFields["commandBar.field"].waitForExistence(timeout: 5), "opens with the command bar")
+        app.typeKey("w", modifierFlags: .command)
+        let back = NSPredicate { _, _ in self.app.windows.count == windows }
+        wait(for: [XCTNSPredicateExpectation(predicate: back, object: nil)], timeout: 5)
+    }
+
     func testOpenCloseRestoreTab() {
         openViaCommandBar("data:text/html,<title>Smoke Page</title><h1>ok</h1>")
         XCTAssertTrue(sidebarTab("Smoke Page").waitForExistence(timeout: 15), "page title never reached the sidebar")

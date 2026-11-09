@@ -54,12 +54,10 @@ public struct RootView: View {
             }
             .overlay {
                 if model.isCommandBarPresented {
-                    CommandBarView(host: model)
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    CommandBarView(host: model, leadingInset: commandBarInset)  // appears at once, like a menu
                 }
             }
             .overlay(alignment: .bottom) { if !model.isWelcomePresented { NoticeBanner(model: model) } }
-            .animation(.snappy(duration: 0.18), value: model.isCommandBarPresented)
             .sheet(isPresented: $model.isHistoryPresented) { HistoryView(model: model) }
             .sheet(isPresented: $model.isClearDataPresented) { ClearBrowsingDataView(model: model) }
             .alert("Turn on developer tools?", isPresented: $model.isConfirmingDevTools) {
@@ -88,15 +86,17 @@ public struct RootView: View {
             #endif
     }
 
-    /// Private windows are dark; otherwise the Space's light/dark choice, or the system's.
-    private var colorScheme: ColorScheme? {
-        if model.isPrivate { return .dark }
-        switch model.state.selectedSpace?.theme.appearance {
-        case .light?: return .light
-        case .dark?: return .dark
-        default: return nil
-        }
+    /// The command bar is centered over the page, beside the sidebar when it's shown.
+    private var commandBarInset: CGFloat {
+        #if os(macOS)
+            sidebarShown ? sidebarWidth : 0
+        #else
+            0
+        #endif
     }
+
+    /// Light or dark (Settings › General › Appearance; private windows are always dark).
+    private var colorScheme: ColorScheme? { model.preferredColorScheme }
 
     /// The margin between the page and the window's edges.
     static let pageInset: CGFloat = 10
@@ -107,7 +107,7 @@ public struct RootView: View {
     static let defaultSidebarWidth: CGFloat = 260
     /// Showing and hiding the sidebar: one motion for the sidebar and the page, without overshoot (a bounce would
     /// open a gap beside the page).
-    static let sidebarMotion = Animation.spring(response: 0.34, dampingFraction: 1)
+    static let sidebarMotion = Animation.spring(response: 0.25, dampingFraction: 1)
 
     private var isEditingSpace: Binding<Bool> {
         Binding(get: { model.editingSpaceID != nil }, set: { if !$0, model.editingSpaceID != nil { model.endEditingSpace(keep: true) } })
@@ -147,7 +147,6 @@ public struct RootView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            if model.isPrivate { PrivateBadge() }
             SidebarView(
                 host: model, accessory: AnyView(SidebarAccessories(model: model)),
                 siteInfo: { AnyView(SiteInfoView(model: model)) }, nowPlaying: AnyView(MiniPlayer(model: model))
@@ -276,6 +275,8 @@ struct ContentArea: View {
                         .id(page.id)
                         .accessibilityHidden(model.currentRequest != nil)
                 }
+            } else if model.isPrivate {
+                Rectangle().fill(.background)  // nothing kept, nothing suggested: an empty page
             } else {
                 StartPage(model: model)
             }
@@ -446,21 +447,6 @@ struct NoticeBanner: View {
     }
 }
 
-/// "Private" at the top of a private window's sidebar.
-struct PrivateBadge: View {
-    var body: some View {
-        Label("Private", systemImage: "eyeglasses")
-            .font(.callout.weight(.semibold))
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
-            .background(Color.purple.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .padding(.horizontal, 10).padding(.top, 10)
-            .help("Private window: no history, and cookies and site data are deleted when it closes")
-            .accessibilityIdentifier("private.badge")
-    }
-}
-
 /// A private window (⇧⌘N): its own memory-only model and session, ended when the window closes.
 public struct PrivateWindowRoot: View {
     @State private var model: AppModel
@@ -473,6 +459,10 @@ public struct PrivateWindowRoot: View {
     /// The window content.
     public var body: some View {
         RootView(model: model)
+            .onAppear { model.showCommandBar(.newTab) }  // a new private window is for typing an address
+            #if os(macOS)
+                .background(MatchMainWindowFrame())
+            #endif
             .onDisappear { model.closePrivateWindow() }
     }
 }
@@ -490,3 +480,38 @@ struct SidebarAccessories: View {
         }
     }
 }
+
+#if os(macOS)
+    /// A private window opens at once (no zoom-in), dark from its first frame (no white flash), with exactly the
+    /// size and place of the browser window behind it: it's a full browser window, not a small one.
+    struct MatchMainWindowFrame: NSViewRepresentable {
+        func makeNSView(context: Context) -> NSView { Matcher() }
+        func updateNSView(_ nsView: NSView, context: Context) {}
+
+        final class Matcher: NSView {
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                guard let window else { return }
+                window.animationBehavior = .none
+                window.appearance = NSAppearance(named: .darkAqua)
+                window.backgroundColor = NSColor(white: 0.13, alpha: 1)
+                guard
+                    let main = NSApp.orderedWindows.first(where: {
+                        $0 !== window && $0.isVisible && $0.canBecomeMain && $0.frame.width >= 820
+                    })
+                else { return }
+                let frame = main.frame
+                window.setFrame(frame, display: false)
+                // AppKit staggers new windows when it shows them: keep it invisible until it's back over the main
+                // window, so it never appears in the wrong place first.
+                window.alphaValue = 0
+                DispatchQueue.main.async {
+                    window.setFrame(frame, display: true)
+                    window.alphaValue = 1
+                }
+            }
+        }
+    }
+#endif

@@ -368,12 +368,14 @@ public struct Settings: Codable, Hashable, Sendable {
     public var linkRoutes: [LinkRoute] = []
     /// Links that a Favorite or pinned tab opens in a new tab show in Peek instead.
     public var peekLinks = true
+    /// Light or dark: the Mac's setting by default.
+    public var appearance = AppearanceChoice.system
 
     private enum CodingKeys: String, CodingKey {
         case archiveAfter, searchEngine, httpsOnly
         case isDeveloperToolsEnabled = "developerTools"
         case hasCompletedOnboarding = "onboarded"
-        case externalLinks, linkRoutes, peekLinks
+        case externalLinks, linkRoutes, peekLinks, appearance
     }
 
     /// Decodes settings; fields added after 0.1 default when missing.
@@ -387,6 +389,7 @@ public struct Settings: Codable, Hashable, Sendable {
         externalLinks = (try? c.decodeIfPresent(ExternalLinkTarget.self, forKey: .externalLinks)) ?? .littleWindow
         linkRoutes = (try? c.decodeIfPresent([LinkRoute].self, forKey: .linkRoutes)) ?? []
         peekLinks = try c.decodeIfPresent(Bool.self, forKey: .peekLinks) ?? true
+        appearance = (try? c.decodeIfPresent(AppearanceChoice.self, forKey: .appearance)) ?? .system
     }
 
     /// Settings on first launch.
@@ -398,6 +401,18 @@ public struct Settings: Codable, Hashable, Sendable {
         self.searchEngine = searchEngine
         self.httpsOnly = httpsOnly
     }
+}
+
+/// Nera's light or dark look (Settings › General).
+public enum AppearanceChoice: String, Codable, Hashable, Sendable, CaseIterable {
+    /// Follows the Mac (System Settings › Appearance).
+    case system
+    /// Always light.
+    case light
+    /// Always dark.
+    case dark
+    /// Each Space's own choice (Edit Space › Appearance).
+    case perSpace
 }
 
 /// Where links from other apps open.

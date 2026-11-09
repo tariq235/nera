@@ -36,7 +36,7 @@ public struct SidebarView: View {
         VStack(alignment: .leading, spacing: 10) {
             SidebarTopBar(host: host)
             AddressPill(host: host, siteInfo: siteInfo)
-            FavoritesGrid(host: host)
+            if !host.isPrivateSession { FavoritesGrid(host: host) }
             // The Spaces sit side by side and slide as one: a two-finger swipe drags them with the fingers, and
             // switching Space glides to the next one. Only the visible Space takes clicks.
             GeometryReader { geo in
@@ -91,11 +91,19 @@ public struct SidebarView: View {
 
     private func spaceContent(_ space: Space) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            SpaceHeader(host: host, space: space)
+            if host.isPrivateSession {
+                Text("Private Tabs").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 8).padding(.top, 4)
+                    .accessibilityAddTraits(.isHeader)
+            } else {
+                SpaceHeader(host: host, space: space)
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
                     ForEach(space.pinned) { node in NodeRow(host: host, node: node).sidebarDropTarget(host, .before(node.id)) }
-                    TodayDivider(host: host).sidebarDropTarget(host, .endOf(.pinned))  // drop on the divider to pin
+                    if !host.isPrivateSession {
+                        TodayDivider(host: host).sidebarDropTarget(host, .endOf(.pinned))  // drop on the divider to pin
+                    }
                     NewTabRow(host: host)
                     ForEach(space.today) { node in NodeRow(host: host, node: node).sidebarDropTarget(host, .before(node.id)) }
                     // The empty area below Today: drop to put an item at the end of Today (or a link to open it).
@@ -105,6 +113,38 @@ public struct SidebarView: View {
             .scrollIndicators(.never)
         }
         .frame(maxHeight: .infinity, alignment: .top)
+        // Right-click anywhere in the Space that isn't a tab or folder (those have their own menus).
+        .contextMenu { if !host.isPrivateSession { SpaceMenuItems(host: host, space: space) } }
+    }
+}
+
+/// The Space's menu (right-click the Space, its header's "…" or its icon): its look, its profile, a folder, delete.
+struct SpaceMenuItems: View {
+    let host: any SidebarHost
+    let space: Space
+
+    var body: some View {
+        Button("Change Space Icon…") { host.editSpace(space.id) }
+        Button("Rename Space…") { host.editSpace(space.id) }
+        Button("Edit Theme Color…") { host.editSpace(space.id) }
+        if host.state.profiles.count > 1 {
+            Menu("Set Profile") {
+                ForEach(host.state.profiles) { profile in
+                    Toggle(
+                        profile.name,
+                        isOn: Binding(
+                            get: { space.profileID == profile.id },
+                            set: { if $0 { host.send(.space(.setProfile(space.id, profileID: profile.id))) } }))
+                }
+            }
+        }
+        Divider()
+        Button("New Folder") { host.send(.space(.createFolder(title: "New Folder"))) }
+        if !space.today.isEmpty { Button("Clear Today Tabs") { host.send(.space(.clearToday)) } }
+        if host.state.spaces.count > 1 {
+            Divider()
+            Button("Delete Space", role: .destructive) { host.send(.space(.delete(space.id))) }
+        }
     }
 }
 
@@ -183,13 +223,7 @@ struct SpaceHeader: View {
             Text(space.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
             Spacer()
             Menu {
-                Button("Edit Space…") { host.editSpace(space.id) }
-                Button("New Folder") { host.send(.space(.createFolder(title: "New Folder"))) }
-                if !space.today.isEmpty { Button("Clear Today Tabs") { host.send(.space(.clearToday)) } }
-                if host.state.spaces.count > 1 {
-                    Divider()
-                    Button("Delete Space", role: .destructive) { host.send(.space(.delete(space.id))) }
-                }
+                SpaceMenuItems(host: host, space: space)
             } label: {
                 Image(systemName: "ellipsis").font(.system(size: 12, weight: .semibold))
             }
@@ -477,70 +511,6 @@ struct TodayDivider: View {
             }
         }
         .padding(.vertical, 6)
-    }
-}
-
-struct SpaceSwitcher: View {
-    let host: any SidebarHost
-    var accessory = AnyView(EmptyView())
-
-    /// "Work" or, with several profiles, "Work · Work profile".
-    private func spaceHelp(_ space: Space) -> String {
-        guard host.state.profiles.count > 1, let profile = host.state.profiles.first(where: { $0.id == space.profileID }),
-            profile.name != space.title
-        else { return space.title }
-        return "\(space.title) · \(profile.name)"
-    }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(host.state.spaces) { space in
-                Button {
-                    host.send(.space(.select(space.id)))
-                } label: {
-                    let isSelected = space.id == host.state.selectedSpaceID
-                    SpaceIconView(icon: space.icon)
-                        .foregroundStyle(.primary.opacity(isSelected ? 0.85 : 0.4))
-                        .frame(width: 28, height: 26)
-                        .surface(isSelected ? .selected : nil, cornerRadius: 7)
-                }
-                .buttonStyle(.plain)
-                .help(spaceHelp(space))
-                .accessibilityLabel(spaceHelp(space))
-                .contextMenu {
-                    if host.state.profiles.count > 1 {
-                        Menu("Profile") {
-                            ForEach(host.state.profiles) { profile in
-                                Toggle(
-                                    profile.name,
-                                    isOn: Binding(
-                                        get: { space.profileID == profile.id },
-                                        set: { if $0 { host.send(.space(.setProfile(space.id, profileID: profile.id))) } }))
-                            }
-                        }
-                    }
-                    Button("Edit Space…") { host.editSpace(space.id) }
-                    if host.state.spaces.count > 1 {
-                        Button("Delete Space", role: .destructive) { host.send(.space(.delete(space.id))) }
-                    }
-                }
-            }
-            Spacer()
-            accessory
-            Menu {
-                Button("New Space…") { host.newSpace() }
-                Button("New Folder") { host.send(.space(.createFolder(title: "New Folder"))) }
-                Divider()
-                Button("Import from Arc…") { host.requestArcImport() }  // naming: import-reference
-            } label: {
-                Image(systemName: "plus")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("New Space, folder or import")
-            .accessibilityLabel("New Space, folder or import")
-            .accessibilityIdentifier("sidebar.plusMenu")
-        }
     }
 }
 

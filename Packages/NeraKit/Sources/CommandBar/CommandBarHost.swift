@@ -22,6 +22,17 @@ public protocol CommandBarHost: AnyObject {
     func dismissCommandBar()
     /// Bookmarks and visited pages matching `query`, best first. Empty for private sessions.
     func historySuggestions(for query: String) -> [CommandBarSuggestion]
+    /// A site's icon (PNG), if the browser has one.
+    func commandBarIcon(for url: URL?) -> Data?
+    /// The Space's theme: the highlighted row takes its color.
+    var commandBarTheme: SpaceTheme? { get }
+}
+
+extension CommandBarHost {
+    /// No icons by default (monograms are shown).
+    public func commandBarIcon(for url: URL?) -> Data? { nil }
+    /// The default theme by default.
+    public var commandBarTheme: SpaceTheme? { nil }
 }
 
 /// A bookmark or history page offered by the command bar.

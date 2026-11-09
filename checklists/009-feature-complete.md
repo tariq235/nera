@@ -20,6 +20,12 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-011** One-click Arc import: Spaces, pinned tree, folders, splits, Today, Favorites — P0 · owner: nera · evidence: test:ImportTests/importsPinnedTreeWithFolderAndSplit, test:ImportTests/importsFavoritesAndReport, test:ImportTests/importedLibraryFeedsReducer
 - [ ] **FEAT-012** Sidebar show/hide (⌘S) UI-tested — P1 · owner: nera · evidence: planned: later
 - [x] **FEAT-050** Sidebar width: drag its edge (200–420 pt, kept per Mac); adjustable with VoiceOver — P1 · owner: nera · evidence: test:NeraUITests/testSidebarEdgeResizesAndTitleStripMovesTheWindow
+- [x] **FEAT-051** Command bar: instant, centered over the page; Esc or a click anywhere outside closes it (the click still goes through); the sidebar works while it's open — P0 · owner: nera · evidence: test:NeraUITests/testEscAndCommandWCloseTheFrontmostThing
+- [x] **FEAT-052** ⌘W closes what's in front: the command bar, else the tab; never the main window — P0 · owner: nera · evidence: test:NeraUITests/testEscAndCommandWCloseTheFrontmostThing
+- [x] **FEAT-053** Private window: full size over the main window, command bar ready, ⌘W closes it while empty — P0 · owner: nera · evidence: test:NeraUITests/testEmptyPrivateWindowClosesWithCommandW, test:BrowserShellTests/privateWindowsAreSeparateAndEphemeral
+- [x] **FEAT-054** Appearance follows the Mac by default; Settings › General › Appearance (Match Mac, Light, Dark, each Space's choice) — P0 · owner: nera · evidence: test:BrowserShellTests/followsTheMacUnlessChosenAndPrivateWindowsAreDark, test:BrowserShellTests/librariesFromBeforeTheSettingFollowTheMac
+- [ ] **FEAT-055** Right-click a Space: Change Space Icon, Rename Space, Edit Theme Color, Set Profile, New Folder, Delete Space — P1 · owner: nera · evidence: planned: UI test
+- [ ] **FEAT-056** ⌘N opens a new browser window sharing the library, with its own Space and tab (ADR-0013) — P0 · owner: nera · evidence: planned: in progress
 
 ## Must-have to switch (after the release gate)
 
