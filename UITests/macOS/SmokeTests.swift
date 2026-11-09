@@ -219,8 +219,8 @@ final class SmokeTests: XCTestCase {
     }
 
     /// Dragging the sidebar's edge resizes it; the strip above the page is a title bar: dragging it moves the
-    /// window (and double-clicking zooms it, which depends on the Mac's settings, so isn't asserted here)
-    /// (FEAT-050, MAC-016).
+    /// window, double-clicking it zooms the window (the Mac's default; minimizing, if chosen in System Settings,
+    /// also counts) and again puts it back (FEAT-050, MAC-016).
     func testSidebarEdgeResizesAndTitleStripMovesTheWindow() {
         let handle = app.descendants(matching: .any)["sidebar.resizeHandle"]
         XCTAssertTrue(handle.waitForExistence(timeout: 10))
@@ -238,6 +238,17 @@ final class SmokeTests: XCTestCase {
         strip.press(forDuration: 0.2, thenDragTo: strip.withOffset(CGVector(dx: -60, dy: 40)))
         let moved = NSPredicate { _, _ in window.frame.origin != before }
         wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
+
+        let frame = window.frame
+        let top = window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 4))
+        top.doubleClick()
+        let zoomed = NSPredicate { _, _ in !window.exists || window.frame != frame }
+        wait(for: [XCTNSPredicateExpectation(predicate: zoomed, object: nil)], timeout: 5)
+        if window.exists {
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 4)).doubleClick()
+            let restored = NSPredicate { _, _ in window.frame == frame }
+            wait(for: [XCTNSPredicateExpectation(predicate: restored, object: nil)], timeout: 5)
+        }
     }
 
     func testOpenCloseRestoreTab() {

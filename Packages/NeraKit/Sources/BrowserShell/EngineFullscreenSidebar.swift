@@ -16,13 +16,19 @@
         let isPeeking: Bool
         let width: CGFloat
 
-        func makeNSView(context: Context) -> NSView { NSView() }
+        func makeNSView(context: Context) -> PassThrough { PassThrough() }
 
-        func updateNSView(_ view: NSView, context: Context) {
+        func updateNSView(_ view: PassThrough, context: Context) {
             context.coordinator.update(window: window, model: model, isPeeking: isPeeking, width: width)
         }
 
-        static func dismantleNSView(_ view: NSView, coordinator: Coordinator) { coordinator.detach() }
+        static func dismantleNSView(_ view: PassThrough, coordinator: Coordinator) { coordinator.detach() }
+
+        /// Sits behind the window's content and takes no clicks: the empty strips around the page stay the title bar
+        /// (drag to move, double-click to zoom).
+        final class PassThrough: NSView {
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        }
 
         func makeCoordinator() -> Coordinator { Coordinator() }
 

@@ -13,6 +13,7 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
   takes the completion. Results come in the order you'd expect: the site, the search, this Space's tabs, history,
   then tabs in other Spaces. A lighter, frosted look.
 - **Fixed:** Nera could open without a window after being force-quit.
+- **Fixed:** double-clicking the empty strip above the start page didn't zoom the window.
 
 ## 0.1.3 — 2026-11-09
 

@@ -178,6 +178,12 @@ public struct RootView: View {
                 page
                     .padding(.leading, isPageFullscreen ? 0 : pageBesideSidebar ? sidebarWidth : Self.pageInset)
                     .padding([.top, .bottom, .trailing], isPageFullscreen ? 0 : Self.pageInset)
+                    // The strip above the page is the title bar (drag to move, double-click to zoom). It's in front:
+                    // scroll views in the page (the start page's) reach up under the title bar and would take its
+                    // clicks.
+                    .overlay(alignment: .top) {
+                        if !isPageFullscreen { TitleBarArea().frame(height: Self.pageInset) }
+                    }
                     .offset(x: sidebarShown && !pageBesideSidebar ? sidebarWidth - Self.pageInset : 0)
                     // Changing size or start position is never animated; only the slide is.
                     .transaction(value: pageBesideSidebar) { $0.animation = nil }
