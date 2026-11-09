@@ -6,7 +6,8 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## 0.1.4 — 2026-11-09
 
-- **Video full screen:** YouTube, X and other videos now fill the whole screen; Esc returns to the window.
+- **Video full screen:** YouTube, X and other videos now fill the whole screen; Esc returns to the window. Move the
+  pointer to the left edge and the sidebar slides in, with an Exit Full Screen button.
 - **Command bar:** typing completes the site's address in place (you → youtube.com); Return opens it, → or Tab
   takes the completion. Results come in the order you'd expect: the site, the search, this Space's tabs, history,
   then tabs in other Spaces. A lighter, frosted look.
