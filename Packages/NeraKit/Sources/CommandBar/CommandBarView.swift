@@ -235,7 +235,10 @@ public struct CommandBarView: View {
 
     private func run(_ s: Suggestion) {
         switch s.kind {
-        case .open, .search:
+        case .open(let url):
+            // The completed site (you → youtube.com) or the address as typed: open what the row shows.
+            host.submitCommandBar(url.absoluteString)
+        case .search:
             host.submitCommandBar(text)
         case .switchTo(let id):
             host.switchToTab(id)
