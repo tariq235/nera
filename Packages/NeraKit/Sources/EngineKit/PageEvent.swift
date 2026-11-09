@@ -25,6 +25,9 @@ public enum PageEvent: Equatable, Sendable {
     case download(DownloadEvent)
     /// The page called `window.close()` (common for OAuth popups). The app decides whether to close the tab.
     case closeRequested
+    /// The page entered (`true`) or left HTML full screen, e.g. a video's full-screen button. The app shows the
+    /// page alone, filling the screen, until it leaves.
+    case fullscreenChanged(Bool)
 }
 
 /// Why a navigation failed.

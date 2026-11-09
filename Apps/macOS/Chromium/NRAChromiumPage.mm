@@ -396,6 +396,10 @@ class PageClient : public CefClient,
     void OnTitleChange(CefRefPtr<CefBrowser>, const CefString &title) override {
         [delegate_ chromiumPage:page_ titleChanged:NS(title)];
     }
+    // The page's content now fills Nera's page area; Nera makes that area fill the screen.
+    void OnFullscreenModeChange(CefRefPtr<CefBrowser>, bool fullscreen) override {
+        [delegate_ chromiumPage:page_ fullscreen:fullscreen];
+    }
     void OnLoadingProgressChange(CefRefPtr<CefBrowser>, double progress) override {
         [delegate_ chromiumPage:page_ progress:progress];
     }
@@ -583,6 +587,9 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
 }
 - (void)goBack { if (_browser) _browser->GoBack(); }
 - (void)goForward { if (_browser) _browser->GoForward(); }
+- (void)exitFullscreen {
+    if (_browser) _browser->GetHost()->ExitFullscreen(true);
+}
 - (void)reload { if (_browser) _browser->Reload(); }
 - (void)stop { if (_browser) _browser->StopLoad(); }
 - (void)setZoomFactor:(double)factor {

@@ -69,6 +69,9 @@ import SwiftUI
         private func showPageIfFree(force: Bool = false) {
             guard let page, window != nil else { return }
             if page.superview === self { return elsewhere.removeFromSuperview() }
+            // Held by something other than a browser window (WebKit's own full-screen window): leave it there, the
+            // engine brings it back when full screen ends.
+            if let holder = page.superview, !(holder is PageContainerView) { return }
             let shownElsewhere = page.window != nil && page.window !== window
             if shownElsewhere && !force && page.window?.isKeyWindow == true {
                 if elsewhere.superview == nil {

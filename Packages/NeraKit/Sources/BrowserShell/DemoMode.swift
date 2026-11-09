@@ -7,7 +7,7 @@
 //   Nera --demo --screenshot out.png    also visits every tab (so real site icons load), then saves the window
 //   ... --size 1180x720                 window size for the shot (default 1440x900)
 //   ... --quick                         don't visit every tab first (faster; placeholder icons)
-//   ... --url <url>                     open this page first, in any scene
+//   ... --url <url>                     open this page first, in any scene (--webkit: with WebKit)
 //   ... --hold <seconds>                wait before the shot (time to drive the window from a test script)
 //   ... --frames <dir>                  with --shot retoggle: record the window during both animations
 //   ... --shot <name>                    which scene: hero (default), command, start, split, editSpace, newSpace,
@@ -197,6 +197,11 @@
                 exit(ok ? 0 : 1)
             }
             await prepareFeature(shot, model, path: path)
+            if CommandLine.arguments.contains("--webkit"), let raw = argument(after: "--url"),
+                let site = SiteEngines.site(of: URL(string: raw))
+            {
+                model.setEngine(.webKit, forSite: site)  // --webkit: show the --url page with WebKit
+            }
             if shot == "visit", let raw = argument(after: "--url"), let url = URL(string: raw) {  // any page, e.g. an error
                 model.send(.tab(.open(url, .newTab)))
                 try? await Task.sleep(for: .seconds(8))

@@ -127,6 +127,7 @@ final class ChromiumPage: WebPage {
     func goForward() { handle.goForward() }
     func reload() { handle.reload() }
     func stop() { handle.stop() }
+    func exitFullscreen() { handle.exitFullscreen() }
 
     func setZoom(_ factor: Double) {
         handle.setZoomFactor(factor)
@@ -276,6 +277,8 @@ extension ChromiumPage: ChromiumPageEvents {
     }
 
     func faviconChanged(_ png: Data) { update { $0.favicon = png } }
+
+    func fullscreenChanged(_ fullscreen: Bool) { emit(.fullscreenChanged(fullscreen)) }
 
     func webAuthnRequested(kind: String, json: String, frameURL: String, topURL: String, reply: @escaping @MainActor (Bool, String) -> Void)
     {

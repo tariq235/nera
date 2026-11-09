@@ -315,6 +315,8 @@ final class FakeHandle: ChromiumPageHandle {
     func goForward() {}
     func reload() {}
     func stop() {}
+    var exitedFullscreen = false
+    func exitFullscreen() { exitedFullscreen = true }
     func setZoomFactor(_ factor: Double) { zoom = factor }
     func setMuted(_ muted: Bool) { self.muted = muted }
     func find(_ text: String, forward: Bool, matchCase: Bool, findNext: Bool) {

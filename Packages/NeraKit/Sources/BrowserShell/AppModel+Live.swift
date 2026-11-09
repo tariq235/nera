@@ -47,6 +47,7 @@ extension AppModel {
             if DemoMode.isRequested {
                 DemoMode.runIfRequested(model)
                 DemoMode.traceIfRequested(model)
+                DemoMode.snapIfRequested()
             }
         #endif
         #if os(macOS)

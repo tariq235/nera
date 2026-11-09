@@ -132,6 +132,8 @@ public final class PageManager {
     /// to ask the user. Set by the app from `PermissionPolicy` (SEC-040). Default: always ask.
     @ObservationIgnored public var automaticPermission: (_ tabID: UUID, _ request: PermissionRequest) -> PermissionDecision? = { _, _ in nil
     }
+    /// The page showing HTML full screen (a video's full-screen button), if any: its window shows it alone.
+    public internal(set) var fullscreenPageID: UUID?
     /// Tabs on screen in each browser window (PageManager+Windows.swift).
     @ObservationIgnored var shownTabs: [ObjectIdentifier: Set<UUID>] = [:]
     /// Pages shown outside the tab list (Peek, Little Windows): never discarded to save memory while shown.
@@ -170,9 +172,9 @@ public final class PageManager {
     /// The tab currently on screen. Never evicted or suspended.
     @ObservationIgnored public private(set) var activeTabID: UUID?
 
-    @ObservationIgnored private let clock: () -> Date
-    @ObservationIgnored private var pages: [UUID: any WebPage] = [:]
-    @ObservationIgnored private var lastUsed: [UUID: Date] = [:]
+    @ObservationIgnored let clock: () -> Date
+    @ObservationIgnored var pages: [UUID: any WebPage] = [:]
+    @ObservationIgnored var lastUsed: [UUID: Date] = [:]
     @ObservationIgnored private var lastReported: [UUID: Reported] = [:]
     @ObservationIgnored private var scopes: [UUID: StorageScope] = [:]
     /// A page in a persistent profile got its site icon (PNG): the app caches it by host.
@@ -327,6 +329,7 @@ public final class PageManager {
 
     /// Destroys a tab's page. Its pending requests are dropped, which applies their safe fallbacks.
     public func discard(_ tabID: UUID) {
+        if fullscreenPageID == tabID { fullscreenPageID = nil }
         pages.removeValue(forKey: tabID)?.close()
         lastUsed[tabID] = nil
         lastReported[tabID] = nil
@@ -391,28 +394,7 @@ public final class PageManager {
         return true
     }
 
-    /// Frees memory: `.warning` discards the older half of the background pages, `.critical` all of them.
-    public func handleMemoryPressure(_ level: MemoryPressureLevel) {
-        let background = backgroundPagesOldestFirst()
-        let count = level == .critical ? background.count : background.count / 2 + background.count % 2
-        background.prefix(count).forEach(discard)
-    }
-
-    /// Discards background pages unused for longer than ``idleTimeout``.
-    public func suspendIdlePages(now: Date? = nil) {
-        let now = now ?? clock()
-        for id in backgroundPagesOldestFirst() where now.timeIntervalSince(lastUsed[id] ?? now) > idleTimeout {
-            discard(id)
-        }
-    }
-
     // MARK: Private
-
-    private func backgroundPagesOldestFirst() -> [UUID] {
-        pages.keys.filter { $0 != activeTabID && !visibleTabIDs.contains($0) && !keptPageIDs.contains($0) }.sorted {
-            (lastUsed[$0] ?? .distantPast) < (lastUsed[$1] ?? .distantPast)
-        }
-    }
 
     private func evictIfNeeded() {
         let excess = pages.count - maxLivePages
@@ -482,6 +464,7 @@ extension PageManager: WebPageDelegate {
             }
             lastBlocked = BlockedNavigation(url: url, reason: reason, tabID: page.id)
         case .processTerminated:
+            if fullscreenPageID == page.id { fullscreenPageID = nil }
             crashedTabs.insert(page.id)
             pendingRequests[page.id] = nil
         case .download(let event):
@@ -492,6 +475,8 @@ extension PageManager: WebPageDelegate {
             if case .finished(let file) = event.state { downloadFinished(file) }
         case .closeRequested:
             send(.tab(.close(page.id)))
+        case .fullscreenChanged(let on):
+            fullscreenPageID = on ? page.id : (fullscreenPageID == page.id ? nil : fullscreenPageID)
         case .navigationFinished:
             documentChanged?(page)
         case .navigationStarted:

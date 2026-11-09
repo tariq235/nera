@@ -35,6 +35,9 @@ public protocol WebPage: AnyObject, Observable {
     /// Stops loading.
     func stop()
 
+    /// Ends the page's HTML full screen (the window left full screen some other way).
+    func exitFullscreen()
+
     /// Sets page zoom (1.0 = 100%). No-op without ``EngineCapability/pageZoom``.
     func setZoom(_ factor: Double)
 
@@ -164,4 +167,9 @@ public struct FindResult: Equatable, Sendable {
         self.matchCount = matchCount
         self.activeMatch = activeMatch
     }
+}
+
+extension WebPage {
+    /// Engines without HTML full screen have nothing to end.
+    public func exitFullscreen() {}
 }

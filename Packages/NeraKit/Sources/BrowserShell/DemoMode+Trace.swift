@@ -19,7 +19,7 @@
                     let windows = NSApp.windows.filter { $0.isVisible && $0.canBecomeMain }.count
                     let line =
                         "trace: bar=\(model.isCommandBarPresented ? 1 : 0) space=\(state.selectedSpace?.title ?? "-") "
-                        + "tab=\(state.selectedTab?.displayTitle ?? "-") tabs=\(tabs) windows=\(windows) sidebar=\(model.isSidebarVisible ? 1 : 0)"
+                        + "tab=\(state.selectedTab?.displayTitle ?? "-") tabs=\(tabs) windows=\(windows) sidebar=\(model.isSidebarVisible ? 1 : 0) fullscreen=\(model.pages.fullscreenPageID == nil ? 0 : 1)"
                     if line != last {
                         FileHandle.standardOutput.write(Data((line + "\n").utf8))  // Debug tool output
                         last = line

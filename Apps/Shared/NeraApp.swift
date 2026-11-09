@@ -17,6 +17,15 @@ struct NeraApp: App {
         @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
     #endif
 
+    init() {
+        #if os(macOS)
+            // Nera keeps its own library (Spaces, tabs) and opens a browser window at every launch. macOS's window
+            // restoration could bring back a "no windows" state instead (after a force quit, or quitting with every
+            // window closed), leaving Nera running without a window. Window sizes are still remembered.
+            UserDefaults.standard.register(defaults: ["ApplePersistenceIgnoreState": true])
+        #endif
+    }
+
     /// Composition root: the **only** place that names concrete engines (ADR-0006, AP-1).
     /// macOS lists Chromium first, backed by the app's CEF bridge (ADR-0010). While Chromium is off or
     /// not running, its adapter reports itself unavailable and the registry falls back to WebKit.

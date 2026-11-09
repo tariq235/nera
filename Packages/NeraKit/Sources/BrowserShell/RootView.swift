@@ -188,9 +188,18 @@ public struct RootView: View {
                 .overlay(alignment: model.pageSwipeProgress < 0 ? .leading : .trailing) {
                     if model.pageSwipeProgress != 0 { SwipeArrow(progress: model.pageSwipeProgress) }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06)))
-                .shadow(color: .black.opacity(0.14), radius: 6, y: 2)
+                .clipShape(RoundedRectangle(cornerRadius: isPageFullscreen ? 0 : Self.pageRadius, style: .continuous))
+                .overlay {
+                    if !isPageFullscreen {
+                        RoundedRectangle(cornerRadius: Self.pageRadius, style: .continuous).strokeBorder(.black.opacity(0.06))
+                    }
+                }
+                .shadow(color: .black.opacity(isPageFullscreen ? 0 : 0.14), radius: 6, y: 2)
+        }
+
+        /// The selected page is showing HTML full screen (a video's full-screen button): it fills the screen alone.
+        private var isPageFullscreen: Bool {
+            model.pages.fullscreenPageID != nil && model.pages.fullscreenPageID == model.state.selectedTabID
         }
     #endif
 
@@ -203,8 +212,8 @@ public struct RootView: View {
             // narrow size once the sidebar is in. So the engine lays the page out once per toggle, not per frame.
             ZStack(alignment: .leading) {
                 page
-                    .padding(.leading, pageBesideSidebar ? sidebarWidth : Self.pageInset)
-                    .padding([.top, .bottom, .trailing], Self.pageInset)
+                    .padding(.leading, isPageFullscreen ? 0 : pageBesideSidebar ? sidebarWidth : Self.pageInset)
+                    .padding([.top, .bottom, .trailing], isPageFullscreen ? 0 : Self.pageInset)
                     .offset(x: sidebarShown && !pageBesideSidebar ? sidebarWidth - Self.pageInset : 0)
                     // Changing size or start position is never animated; only the slide is.
                     .transaction(value: pageBesideSidebar) { $0.animation = nil }
@@ -213,10 +222,10 @@ public struct RootView: View {
                 // scroll position.
                 sidebar
                     .frame(width: sidebarWidth)
-                    .offset(x: sidebarShown ? 0 : -sidebarWidth)
+                    .offset(x: sidebarShown && !isPageFullscreen ? 0 : -sidebarWidth)
                     .allowsHitTesting(sidebarShown)
                     .accessibilityHidden(!sidebarShown)
-                if sidebarShown && pageBesideSidebar { resizeHandle }
+                if sidebarShown && pageBesideSidebar && !isPageFullscreen { resizeHandle }
             }
             .onChange(of: model.isSidebarVisible) { _, visible in
                 if visible {
@@ -234,14 +243,17 @@ public struct RootView: View {
                 sidebarShown = model.isSidebarVisible
                 pageBesideSidebar = model.isSidebarVisible
             }
-            .overlay(alignment: .leading) { if !model.isSidebarVisible { peekingSidebar } }
+            .overlay(alignment: .leading) { if !model.isSidebarVisible && !isPageFullscreen { peekingSidebar } }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
             // drag to move, double-click to zoom. Swipes are watched without taking any clicks.
             .background {
                 ZStack {
                     TitleBarArea()
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
-                    WindowButtons(visible: sidebarShown || model.isSidebarPeeking)
+                    WindowButtons(visible: (sidebarShown || model.isSidebarPeeking) && !isPageFullscreen)
+                    FullScreenWindow(isOn: isPageFullscreen) {
+                        if let id = model.pages.fullscreenPageID { model.pages.existingPage(for: id)?.exitFullscreen() }
+                    }
                     TabKeys(model: model)
                 }
             }
@@ -486,59 +498,3 @@ struct SidebarAccessories: View {
         }
     }
 }
-
-#if os(macOS)
-    /// A private window opens at once (no zoom-in), dark from its first frame (no white flash), with exactly the
-    /// size and place of the browser window behind it: it's a full browser window, not a small one.
-    struct MatchMainWindowFrame: View {
-        var body: some View { MatchFrontWindowFrame(offset: .zero, isDark: true) }
-    }
-
-    /// Opens a window at once with the size of the browser window in front, moved by `offset` (nil: leave the
-    /// window where it is). It stays invisible until it's in place, so it never appears somewhere else first.
-    struct MatchFrontWindowFrame: NSViewRepresentable {
-        var offset: CGSize?
-        var isDark = false
-
-        func makeNSView(context: Context) -> NSView {
-            let view = Matcher()
-            view.offset = offset
-            view.isDark = isDark
-            return view
-        }
-
-        func updateNSView(_ nsView: NSView, context: Context) {}
-
-        final class Matcher: NSView {
-            var offset: CGSize?
-            var isDark = false
-            private var placed = false
-
-            override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-            override func viewDidMoveToWindow() {
-                super.viewDidMoveToWindow()
-                guard let window, let offset, !placed else { return }
-                placed = true
-                window.animationBehavior = .none
-                if isDark {
-                    window.appearance = NSAppearance(named: .darkAqua)
-                    window.backgroundColor = NSColor(white: 0.13, alpha: 1)
-                }
-                guard
-                    let front = NSApp.orderedWindows.first(where: {
-                        $0 !== window && $0.isVisible && $0.canBecomeMain && $0.frame.width >= 820
-                    })
-                else { return }
-                let frame = front.frame.offsetBy(dx: offset.width, dy: offset.height)
-                window.setFrame(frame, display: false)
-                // AppKit staggers new windows when it shows them: keep it invisible until it's in place.
-                window.alphaValue = 0
-                DispatchQueue.main.async {
-                    window.setFrame(frame, display: true)
-                    window.alphaValue = 1
-                }
-            }
-        }
-    }
-#endif

@@ -45,6 +45,8 @@ public protocol ChromiumPageHandle: AnyObject {
     func reload()
     /// Stops loading.
     func stop()
+    /// Ends the page's HTML full screen.
+    func exitFullscreen()
     /// Page zoom, 1.0 = 100%.
     func setZoomFactor(_ factor: Double)
     /// Mutes or unmutes audio.
@@ -184,6 +186,8 @@ public protocol ChromiumPageEvents: AnyObject {
     func didFail(url: String, code: Int, description: String)
     /// The title changed.
     func titleChanged(_ title: String)
+    /// The page entered or left HTML full screen.
+    func fullscreenChanged(_ fullscreen: Bool)
     /// The page's favicon (PNG) was downloaded.
     func faviconChanged(_ png: Data)
     /// A frame made a WebAuthn request through Nera's shim. `reply(ok, payload)`: JSON, or `"Name|message"`.
