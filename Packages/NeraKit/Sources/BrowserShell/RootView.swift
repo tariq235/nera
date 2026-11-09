@@ -134,13 +134,12 @@ public struct RootView: View {
                         .onEnded { _ in dragStartWidth = nil }
                 )
                 .offset(x: sidebarWidth - 4)
-                // VoiceOver and keyboard users adjust the same width in steps.
-                .accessibilityElement()
-                .accessibilityLabel("Sidebar width")
-                .accessibilityValue("\(Int(sidebarWidth)) points")
-                .accessibilityAdjustableAction { direction in
-                    let step: CGFloat = direction == .increment ? 20 : direction == .decrement ? -20 : 0
-                    storedSidebarWidth = Double(min(max(sidebarWidth + step, Self.sidebarWidths.lowerBound), Self.sidebarWidths.upperBound))
+                // VoiceOver and keyboard users get the same width as a slider.
+                .accessibilityRepresentation {
+                    Slider(
+                        value: Binding(get: { Double(sidebarWidth) }, set: { storedSidebarWidth = $0.rounded() }),
+                        in: Double(Self.sidebarWidths.lowerBound)...Double(Self.sidebarWidths.upperBound), step: 20
+                    ) { Text("Sidebar width") }
                 }
                 .accessibilityIdentifier("sidebar.resizeHandle")
         }

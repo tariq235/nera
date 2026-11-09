@@ -19,7 +19,7 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-010** Tab cycling (⌥⌘↑/↓) — P1 · owner: nera · evidence: test:BrowserCoreTests/tabCyclingWraps
 - [x] **FEAT-011** One-click Arc import: Spaces, pinned tree, folders, splits, Today, Favorites — P0 · owner: nera · evidence: test:ImportTests/importsPinnedTreeWithFolderAndSplit, test:ImportTests/importsFavoritesAndReport, test:ImportTests/importedLibraryFeedsReducer
 - [ ] **FEAT-012** Sidebar show/hide (⌘S) UI-tested — P1 · owner: nera · evidence: planned: later
-- [x] **FEAT-050** Sidebar width: drag its edge (200–420 pt, kept per Mac); adjustable with VoiceOver — P1 · owner: nera · evidence: test:NeraUITests/testSidebarEdgeResizesAndTitleStripZooms
+- [x] **FEAT-050** Sidebar width: drag its edge (200–420 pt, kept per Mac); adjustable with VoiceOver — P1 · owner: nera · evidence: test:NeraUITests/testSidebarEdgeResizesAndTitleStripMovesTheWindow
 
 ## Must-have to switch (after the release gate)
 
