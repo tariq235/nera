@@ -33,6 +33,7 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-061** Command bar: inline site completion (→/Tab accepts), ranked site → search → this Space's tabs → history → other Spaces' tabs; frosted panel — P0 · owner: nera · evidence: test:BrowserCoreTests/completesTheFirstSiteThatStartsWithTheText, test:BrowserCoreTests/doesNotCompleteSearchesOrFinishedAddresses
 - [x] **FEAT-062** A browser window opens at every launch (macOS window restoration off; the library is Nera's own) — P0 · owner: nera · evidence: test:NeraUITests/testLaunchShowsSidebarAndEmptyState
 - [x] **FEAT-063** Over a full-screen video the pointer at the left edge slides the sidebar in, with Exit Full Screen; WebKit's own full-screen window too (a panel attached to it); choosing another tab ends the full screen — P0 · owner: nera · evidence: test:BrowserShellTests/webKitFullScreenKeepsTheWindowAsItIs, test:BrowserShellTests/choosingAnotherTabEndsTheVideosFullScreen, file:Packages/NeraKit/Sources/BrowserShell/EngineFullscreenSidebar.swift
+- [x] **FEAT-064** Closing a tab that plays sound silences it at once on both engines (Chromium: muted before its unload code runs; WebKit: media paused and suspended before the view goes) — P0 · owner: nera · evidence: test:WebKitEngineTests/closingAPagePausesItsMediaAtOnce, test:ChromiumEngineTests/aClosedPageSendsNothingAndRefusesEverything
 
 ## Must-have to switch (after the release gate)
 

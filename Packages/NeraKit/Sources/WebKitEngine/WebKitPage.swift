@@ -111,6 +111,7 @@ final class WebKitPage: NSObject, WebPage {
     func close() {
         guard !isClosed else { return }
         isClosed = true
+        silenceMedia()
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil

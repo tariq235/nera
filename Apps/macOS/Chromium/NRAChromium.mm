@@ -229,6 +229,8 @@ class NeraApp : public CefApp, public CefBrowserProcessHandler {
         // Debug privacy audits only (PRV-006, scripts/privacy/chromium-traffic.sh): Chromium logs every request it
         // makes to this file, so its own background traffic can be listed.
         if (const char *netlog = getenv("NERA_NETLOG")) commandLine->AppendSwitchWithValue("log-net-log", netlog);
+        // Debug media checks only (how fast sound stops when a tab closes or Nera quits): pages play without a click.
+        if (getenv("NERA_AUTOPLAY")) commandLine->AppendSwitchWithValue("autoplay-policy", "no-user-gesture-required");
 #endif
     }
 

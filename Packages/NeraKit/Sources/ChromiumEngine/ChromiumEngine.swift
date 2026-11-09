@@ -184,6 +184,9 @@ final class ChromiumPage: WebPage {
         isClosed = true
         findContinuation?.resume(returning: FindResult(matchFound: false))
         findContinuation = nil
+        // Silence it first: Chromium gives a closing page time to run its unload code (up to about half a second),
+        // and its sound would play on until then. Muting takes it off the speakers at once.
+        handle.setMuted(true)
         handle.close()
         delegate = nil
     }

@@ -231,6 +231,7 @@ struct ChromiumAdapterTests {
         let (page, handle) = makePage()
         page.close()
         #expect(handle.closed)
+        #expect(handle.muted, "silenced before Chromium runs the page's unload code")
         handle.events?.didCommit(url: "https://example.com/")
         #expect(handle.events?.shouldNavigate(to: "https://example.com/", mainFrame: true, trigger: .userTyped) == false)
         var replies: [Bool] = []

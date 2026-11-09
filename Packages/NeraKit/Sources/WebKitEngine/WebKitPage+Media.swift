@@ -5,9 +5,17 @@ import EngineKit
 import Foundation
 import WebKit
 
-/// HTML full screen (a video's full-screen button): WebKit puts a placeholder where the view was, moves the view into
-/// a full-screen window of its own, and swaps it back when full screen ends.
+/// Media: HTML full screen (a video's full-screen button), where WebKit puts a placeholder where the view was, moves
+/// the view into a full-screen window of its own, and swaps it back when full screen ends; and silencing a closing
+/// page.
 extension WebKitPage {
+    /// Stops the page's sound and video now. A closing page needs it: WebKit's media process plays on for seconds
+    /// after the view goes away.
+    func silenceMedia() {
+        webView.pauseAllMediaPlayback {}
+        webView.setAllMediaPlaybackSuspended(true) {}
+    }
+
     /// WebKit shows HTML full screen in a window of its own, not in Nera's.
     var showsFullscreenInOwnWindow: Bool { true }
 

@@ -6,6 +6,7 @@ import EngineConformance
 import EngineKit
 import Foundation
 import Testing
+import WebKit
 
 @testable import WebKitEngine
 
@@ -86,6 +87,33 @@ struct WebKitAdapterTests {
         #expect(engine.ephemeralSessionCount == 1)
         b.close()
         #expect(engine.ephemeralSessionCount == 0)
+    }
+
+    /// Closing a tab that's playing sound silences it at once: WebKit's media process would otherwise play on for
+    /// seconds after the view is gone.
+    @Test func closingAPagePausesItsMediaAtOnce() async throws {
+        let server = try #require(LocalTestServer.shared)
+        setenv("NERA_AUTOPLAY", "1", 1)
+        defer { unsetenv("NERA_AUTOPLAY") }
+        let page = try #require(
+            WebKitEngine().makePage(PageConfiguration(id: UUID(), storage: .ephemeral(UUID()), policy: .init()), delegate: NullDelegate())
+                as? WebKitPage)
+        let window = NSWindow(
+            contentRect: NSRect(x: -6000, y: -6000, width: 320, height: 240), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = page.view
+        window.orderFrontRegardless()
+        defer { window.close() }
+        page.load(server.url("/audio"))
+        var state = WKMediaPlaybackState.none
+        for _ in 0..<100 where state != .playing {
+            try await Task.sleep(for: .milliseconds(100))
+            state = await page.webView.requestMediaPlaybackState()
+        }
+        try #require(state == .playing, "the tone never started")
+        page.close()
+        let after = await page.webView.requestMediaPlaybackState()
+        #expect(after != .playing, "still playing after close: \(after.rawValue)")
     }
 
     /// WebKit calls delegates by Objective-C selector. A Swift method whose name is slightly off still
