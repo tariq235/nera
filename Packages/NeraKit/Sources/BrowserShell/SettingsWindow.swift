@@ -145,6 +145,22 @@ struct GeneralSettingsView: View {
                 }
             #endif
             Section {
+                Picker(
+                    "Appearance",
+                    selection: Binding(get: { model.state.settings.appearance }, set: { model.send(.library(.setAppearance($0))) })
+                ) {
+                    Text("Match Mac").tag(AppearanceChoice.system)
+                    Text("Light").tag(AppearanceChoice.light)
+                    Text("Dark").tag(AppearanceChoice.dark)
+                    Text("Each Space's choice").tag(AppearanceChoice.perSpace)
+                }
+                .accessibilityIdentifier("general.appearance")
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("Match Mac follows System Settings › Appearance. Private windows are always dark.").foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Search engine", selection: searchEngine) {
                     ForEach(choices, id: \.self) { Text($0.name).tag($0) }
                 }

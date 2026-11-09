@@ -59,6 +59,15 @@ struct NeraApp: App {
         .commands { BrowserCommands(model: model) }
 
         #if os(macOS)
+            // ⌘N: more browser windows. They share the library, each with its own Space and tab (ADR-0013).
+            WindowGroup("Browser Window", id: AppModel.browserWindowID) {
+                BrowserWindowRoot(main: model)
+                    .frame(minWidth: 820, minHeight: 520)
+            }
+            .handlesExternalEvents(matching: [])  // links from other apps go to the main window
+            .windowStyle(.hiddenTitleBar)
+            .windowToolbarStyle(.unifiedCompact(showsTitle: false))
+
             // ⇧⌘N: private windows share the engines, never the library, history or website data.
             WindowGroup("Private Browsing", id: AppModel.privateWindowID) {
                 PrivateWindowRoot(registry: model.pages.registry)

@@ -50,6 +50,9 @@ struct AppModelTests {
         secret.send(.tab(.open(URL(string: "https://secret.example")!, .newTab)))
         #expect(main.state.spaces.flatMap(\.today).isEmpty, "nothing reaches the main library")
         #expect(secret.state.selectedSpace?.title == "Private")
+        #expect(secret.isPrivateSession && !main.isPrivateSession, "the sidebar shows one list of private tabs")
+        #expect(secret.state.selectedSpace?.theme.saturation == 0, "neutral gray, unlike any Space")
+        #expect(secret.state.selectedSpace?.theme.appearance == .dark)
     }
 
     @Test func developerToolsNeedConfirmationFirst() {
@@ -129,5 +132,45 @@ struct AppModelTests {
         #expect(looks.first == first)
         #expect(Set(looks.map(\.hue)).count == 4, "Spaces are easy to tell apart")
         #expect(looks.allSatisfy { $0.appearance == first.appearance })
+    }
+}
+
+@MainActor
+struct AppearanceTests {
+    @Test func followsTheMacUnlessChosenAndPrivateWindowsAreDark() throws {
+        let model = AppModel(store: .load(persistence: InMemoryStore()), registry: EngineRegistry([FakeEngine()]), downloadsDirectory: nil)
+        let space = try #require(model.state.selectedSpace)
+        model.send(.space(.customize(space.id, icon: nil, theme: SpaceTheme(hue: 0.1, saturation: 0.3, appearance: .dark))))
+        #expect(model.state.settings.appearance == .system)
+        #expect(model.preferredColorScheme == nil, "a dark Space doesn't override the Mac's setting by default")
+        model.send(.library(.setAppearance(.light)))
+        #expect(model.preferredColorScheme == .light)
+        model.send(.library(.setAppearance(.perSpace)))
+        #expect(model.preferredColorScheme == .dark, "each Space's choice when asked for")
+        #expect(AppModel.privateWindow(registry: EngineRegistry([FakeEngine()])).preferredColorScheme == .dark)
+    }
+
+    @Test func librariesFromBeforeTheSettingFollowTheMac() throws {
+        var settings = try JSONSerialization.jsonObject(with: JSONEncoder().encode(Settings.default)) as? [String: Any] ?? [:]
+        settings["appearance"] = nil
+        let old = try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: settings))
+        #expect(old.appearance == .system)
+    }
+}
+
+@MainActor
+struct CloseFrontmostTests {
+    @Test func commandWClosesTheBarThenTheTabNeverTheMainWindow() throws {
+        let model = AppModel(store: .load(persistence: InMemoryStore()), registry: EngineRegistry([FakeEngine()]), downloadsDirectory: nil)
+        model.send(.tab(.open(URL(string: "https://example.com")!, .newTab)))
+        let tab = try #require(model.state.selectedTabID)
+        model.showCommandBar(.newTab)
+        model.closeFrontmost()
+        #expect(!model.isCommandBarPresented, "the command bar first")
+        #expect(model.state.selectedTabID == tab, "the tab stays")
+        model.closeFrontmost()
+        #expect(model.state.locate(tab) == nil, "then the tab")
+        model.closeFrontmost()  // nothing selected in the main window: nothing happens (no crash, no window closing)
+        #expect(!model.isCommandBarPresented)
     }
 }

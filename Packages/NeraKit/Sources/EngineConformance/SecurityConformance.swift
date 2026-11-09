@@ -125,7 +125,8 @@ public enum SecurityConformance {
             try await ctx.wait("A stored") { a.state.title == "STORAGE fromA" }
             let (b, _) = ctx.makePage(storage: .persistent(UUID()))
             b.load(server.url("/storage"))
-            try await ctx.wait("B read") { b.state.title.hasPrefix("STORAGE") }
+            // "STORAGE <value>" is the script's title; plain "STORAGE" is the page's own, before the script ran.
+            try await ctx.wait("B read") { b.state.title.hasPrefix("STORAGE ") }
             try ctx.expect(b.state.title == "STORAGE none", "profile B read A's storage: \(b.state.title)")
         },
         ConformanceCase(id: "S13", title: "Profiles don't share the HTTP cache", requires: []) { ctx in

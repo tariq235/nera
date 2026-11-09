@@ -43,6 +43,7 @@ public struct BrowserCommands: Commands {
         }
         CommandGroup(replacing: .newItem) {
             Button("New Tab…") { model.showCommandBar(.newTab) }.keyboardShortcut("t")
+            Button("New Window") { openWindow(id: AppModel.browserWindowID) }.keyboardShortcut("n")
             Button("Open Location…") { model.showCommandBar(.currentTab) }.keyboardShortcut("l")
             Button("New Private Window") { openWindow(id: AppModel.privateWindowID) }.keyboardShortcut("n", modifiers: [.command, .shift])
             Button("New Tab in Split View…") { model.showCommandBar(.splitWithCurrent) }.keyboardShortcut(
@@ -51,7 +52,10 @@ public struct BrowserCommands: Commands {
             .disabled(model.state.selectedTab == nil)
             Button("Restore Last Closed Tab") { model.send(.tab(.restoreLastClosed)) }.keyboardShortcut("t", modifiers: [.command, .shift])
             Divider()
-            Button("Close Tab") { model.closeSelectedTab() }.keyboardShortcut("w")
+            // ⌘W closes what's in front: the command bar if it's open, otherwise the tab. Only an empty private
+            // window closes itself; the main window never closes on ⌘W (⇧⌘W closes it).
+            Button("Close Tab") { model.closeFrontmost() }
+                .keyboardShortcut("w")
             #if os(macOS)
                 Button("Close Window") { NSApp.keyWindow?.performClose(nil) }.keyboardShortcut("w", modifiers: [.command, .shift])
             #endif

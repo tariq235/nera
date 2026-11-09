@@ -171,7 +171,7 @@ struct PeekButtonStyle: ButtonStyle {
                 }
             }
             .background(Theme.background(for: model.state.selectedSpace?.theme))
-            .preferredColorScheme(model.state.selectedSpace?.theme.appearance == .dark ? .dark : nil)
+            .preferredColorScheme(model.preferredColorScheme)
             .frame(minWidth: 480, minHeight: 360)
             .onDisappear { model.closeLittleWindow(id) }
             .accessibilityIdentifier("littleWindow")

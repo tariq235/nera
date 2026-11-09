@@ -132,8 +132,8 @@ public final class PageManager {
     /// to ask the user. Set by the app from `PermissionPolicy` (SEC-040). Default: always ask.
     @ObservationIgnored public var automaticPermission: (_ tabID: UUID, _ request: PermissionRequest) -> PermissionDecision? = { _, _ in nil
     }
-    /// Other tabs on screen (Split View panes). Never evicted or suspended either.
-    @ObservationIgnored public var visibleTabIDs: Set<UUID> = []
+    /// Tabs on screen in each browser window (PageManager+Windows.swift).
+    @ObservationIgnored var shownTabs: [ObjectIdentifier: Set<UUID>] = [:]
     /// Pages shown outside the tab list (Peek, Little Windows): never discarded to save memory while shown.
     @ObservationIgnored public var keptPageIDs: Set<UUID> = []
     /// The engine each page runs in, and the profile it was made for (to move a page when a site needs the other

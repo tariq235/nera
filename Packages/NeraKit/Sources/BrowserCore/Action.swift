@@ -147,6 +147,8 @@ public enum LibraryAction: Equatable, Sendable {
     case removeLinkRoute(UUID)
     /// Turn Peek for links from Favorites and pinned tabs on or off.
     case setPeekLinks(Bool)
+    /// Light, dark, the Mac's setting, or each Space's.
+    case setAppearance(AppearanceChoice)
     /// Change a profile's bookmarks.
     case bookmarks(profileID: UUID, BookmarkAction)
     /// The welcome screen was finished or skipped; it doesn't show again.

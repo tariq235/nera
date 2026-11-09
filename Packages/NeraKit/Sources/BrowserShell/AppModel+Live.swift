@@ -44,7 +44,10 @@ extension AppModel {
             model.send(.library(.completeOnboarding))
         }
         #if DEBUG && os(macOS)
-            if DemoMode.isRequested { DemoMode.runIfRequested(model) }
+            if DemoMode.isRequested {
+                DemoMode.runIfRequested(model)
+                DemoMode.traceIfRequested(model)
+            }
         #endif
         #if os(macOS)
             // Chromium starts after this (applicationWillFinishLaunching): its startup profile is the main profile.
