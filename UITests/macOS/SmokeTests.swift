@@ -251,6 +251,25 @@ final class SmokeTests: XCTestCase {
         }
     }
 
+    /// Typing the start of a site the bar completes inline, then Return, opens that site, not a search for the
+    /// letters typed (FEAT-061). `.invalid` never resolves, so no network is needed.
+    func testReturnOpensTheCompletedSite() {
+        openViaCommandBar("http://nera-completion.invalid/")
+        let field = app.textFields["commandBar.field"]
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        app.typeKey("t", modifierFlags: .command)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("nera-comp")
+        field.typeText("\n")
+        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
+        app.typeKey("l", modifierFlags: .command)
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let shown = NSPredicate { _, _ in (field.value as? String)?.contains("nera-completion.invalid") == true }
+        wait(for: [XCTNSPredicateExpectation(predicate: shown, object: nil)], timeout: 5)
+        XCTAssertFalse((field.value as? String ?? "").contains("q=nera-comp"), "Return searched instead of opening the site")
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
     func testOpenCloseRestoreTab() {
         openViaCommandBar("data:text/html,<title>Smoke Page</title><h1>ok</h1>")
         XCTAssertTrue(sidebarTab("Smoke Page").waitForExistence(timeout: 15), "page title never reached the sidebar")
