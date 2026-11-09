@@ -123,6 +123,9 @@ jobs:
           SIM_ID=$(./scripts/ci/pick-ios-simulator.sh)
           xcodebuild -project Nera.xcodeproj -scheme NeraMobile -configuration Release -destination "platform=iOS Simulator,id=$SIM_ID" -derivedDataPath build/DerivedData CODE_SIGNING_ALLOWED=NO ARCHS=arm64 DEPLOYMENT_POSTPROCESSING=YES STRIP_INSTALLED_PRODUCT=YES build -quiet
       - name: Size gate (iOS)
+        env:
+          # The same reviewed-growth rule as macOS (the label applies to both apps).
+          SIZE_GROWTH_APPROVED: ${{ (github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'size-increase-approved')) && '1' || '0' }}
         run: python3 -I scripts/ci/check-binary-size.py ios build/DerivedData/Build/Products/Release-iphonesimulator/Nera.app
       - name: Keep size report (next PRs compare against main's)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
