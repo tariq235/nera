@@ -62,6 +62,12 @@ public enum TabAction: Equatable, Sendable {
     case addToFavorites(UUID)
     /// Move a tab to `index` of `section` in the current Space.
     case move(UUID, section: Section, index: Int)
+    /// Name a tab (an empty name goes back to the page title).
+    case rename(UUID, title: String)
+    /// A new tab with the same page, just below the tab (or at the top of Today), selected.
+    case duplicate(UUID)
+    /// Move a tab to the top of another Space's Today (from its Space or Favorites). A selected tab is followed there.
+    case moveToSpace(UUID, spaceID: UUID)
 }
 
 /// Where a dragged sidebar item lands.

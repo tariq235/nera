@@ -30,7 +30,42 @@ extension Reducer {
         case .didUpdate(let id, let url, let title): didUpdate(&state, id, url: url, title: title)
         case .addToFavorites(let id): addToFavorites(&state, id)
         case .move(let id, let section, let index): move(&state, id, section: section, index: index)
+        case .rename(let id, let title): rename(&state, id, title: title)
+        case .duplicate(let id): duplicate(&state, id, env)
+        case .moveToSpace(let id, let spaceID): moveToSpace(&state, id, spaceID: spaceID, env)
         }
+    }
+
+    private static func rename(_ state: inout BrowserState, _ id: UUID, title: String) -> [Effect] {
+        let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        mutateTab(&state, id) { $0.customTitle = name.isEmpty ? nil : name }
+        return []
+    }
+
+    private static func duplicate(_ state: inout BrowserState, _ id: UUID, _ env: ReducerEnvironment) -> [Effect] {
+        guard let (source, location) = state.locate(id), let url = source.url else { return [] }
+        var spaceID = state.selectedSpaceID
+        if case .space(let sid, _) = location { spaceID = sid }
+        guard let si = state.spaces.firstIndex(where: { $0.id == spaceID }) else { return [] }
+        let copy = Tab(id: env.uuid(), url: url, title: source.title, lastActiveAt: env.now())
+        if let index = state.spaces[si].today.firstIndex(where: { $0.id == id }) {
+            state.spaces[si].today.insert(.tab(copy), at: index + 1)  // right below a Today tab
+        } else {
+            state.spaces[si].today.insert(.tab(copy), at: 0)
+        }
+        state.selectedSpaceID = spaceID
+        state.selectedTabID = copy.id
+        return [.load(tabID: copy.id, url: url)]
+    }
+
+    private static func moveToSpace(_ state: inout BrowserState, _ id: UUID, spaceID: UUID, _ env: ReducerEnvironment) -> [Effect] {
+        guard let si = state.spaces.firstIndex(where: { $0.id == spaceID }) else { return [] }
+        if case .space(let current, _)? = state.locate(id)?.location, current == spaceID { return [] }
+        guard var tab = removeTabAnywhere(&state, id) else { return [] }
+        tab.lastActiveAt = env.now()
+        state.spaces[si].today.insert(.tab(tab), at: 0)
+        if state.selectedTabID == id { state.selectedSpaceID = spaceID }  // follow the selected tab to its new Space
+        return []
     }
 
     private static func clearSelection(_ state: inout BrowserState) -> [Effect] {
