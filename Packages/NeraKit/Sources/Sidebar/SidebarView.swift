@@ -425,6 +425,8 @@ struct TabRow: View {
     let host: any SidebarHost
     let tab: Tab
     @State private var isHovering = false
+    @State private var isRenaming = false
+    @State private var newName = ""
 
     private var isSelected: Bool { host.state.selectedTabID == tab.id }
 
@@ -451,7 +453,19 @@ struct TabRow: View {
         .contentShape(Rectangle())
         .onTapGesture { host.send(.tab(.select(tab.id))) }
         .onHover { isHovering = $0 }
-        .contextMenu { TabMenu(host: host, tab: tab) }
+        .contextMenu {
+            TabMenu(host: host, tab: tab) {
+                newName = tab.displayTitle
+                isRenaming = true
+            }
+        }
+        .alert("Rename Tab", isPresented: $isRenaming) {
+            TextField("Name", text: $newName)
+            Button("Rename") { host.send(.tab(.rename(tab.id, title: newName))) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Leave it empty to show the page's own title.")
+        }
         .draggable(tab.id.uuidString)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
@@ -463,6 +477,8 @@ struct TabRow: View {
 struct TabMenu: View {
     let host: any SidebarHost
     let tab: Tab
+    /// Shows "Rename…" (rows that can show the rename dialog).
+    var rename: (() -> Void)?
 
     var body: some View {
         let location = host.state.locate(tab.id)?.location
@@ -482,6 +498,27 @@ struct TabMenu: View {
         }
         if tab.homeURL != nil, tab.homeURL != tab.url {
             Button("Reset to Original URL") { host.send(.tab(.resetToHome(tab.id))) }
+        }
+        if let rename { Button("Rename…", action: rename) }
+        if tab.url != nil { Button("Duplicate") { host.send(.tab(.duplicate(tab.id))) } }
+        let otherSpaces = host.state.spaces.filter { space in
+            if case .space(let id, _)? = location { return space.id != id }
+            return true
+        }
+        if !otherSpaces.isEmpty, !host.isPrivateSession {
+            Menu("Move to Space") {
+                ForEach(otherSpaces) { space in
+                    Button {
+                        host.send(.tab(.moveToSpace(tab.id, spaceID: space.id)))
+                    } label: {
+                        Label {
+                            Text(space.title)
+                        } icon: {
+                            SpaceIconView(icon: space.icon)
+                        }
+                    }
+                }
+            }
         }
         Divider()
         if let selected = host.state.selectedTabID, selected != tab.id, !isFavorite {

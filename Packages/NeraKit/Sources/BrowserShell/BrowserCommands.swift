@@ -62,10 +62,9 @@ public struct BrowserCommands: Commands {
         }
         CommandMenu("Tabs") {
             Button("Pin / Unpin Tab") { model.togglePinSelectedTab() }.keyboardShortcut("d")
-            Button("Next Tab") { model.send(.tab(.selectAdjacent(offset: 1))) }.keyboardShortcut(
-                .downArrow, modifiers: [.command, .option])
-            Button("Previous Tab") { model.send(.tab(.selectAdjacent(offset: -1))) }.keyboardShortcut(
-                .upArrow, modifiers: [.command, .option])
+            // ⇧⌘] / ⇧⌘[ (also ⌥⌘↓/↑ and ⌃Tab/⌃⇧Tab, see TabKeys).
+            Button("Next Tab") { model.send(.tab(.selectAdjacent(offset: 1))) }.keyboardShortcut("]", modifiers: [.command, .shift])
+            Button("Previous Tab") { model.send(.tab(.selectAdjacent(offset: -1))) }.keyboardShortcut("[", modifiers: [.command, .shift])
             Button("Clear Today Tabs") { model.send(.space(.clearToday)) }.keyboardShortcut("k", modifiers: [.command, .shift])
             Divider()
             Button("History") { model.isHistoryPresented = true }.keyboardShortcut("y").disabled(model.isPrivate)

@@ -148,7 +148,12 @@ public struct RootView: View {
         VStack(spacing: 0) {
             SidebarView(
                 host: model, accessory: AnyView(SidebarAccessories(model: model)),
-                siteInfo: { AnyView(SiteInfoView(model: model)) }, nowPlaying: AnyView(MiniPlayer(model: model))
+                siteInfo: { AnyView(SiteInfoView(model: model)) },
+                nowPlaying: AnyView(
+                    VStack(spacing: 8) {
+                        UpdateCard(model: model)
+                        MiniPlayer(model: model)
+                    })
             )
         }
     }
@@ -237,6 +242,7 @@ public struct RootView: View {
                     TitleBarArea()
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
                     WindowButtons(visible: sidebarShown || model.isSidebarPeeking)
+                    TabKeys(model: model)
                 }
             }
             .ignoresSafeArea(.container, edges: .top)  // the sidebar runs up beside the window buttons, like the title bar
@@ -379,7 +385,8 @@ struct NoticeBanner: View {
     }
 
     var body: some View {
-        if case .ready(let version) = model.updateStatus, !model.isUpdateBannerDismissed {
+        // With the sidebar shown, updates are a card at its bottom (UpdateCard); hidden, a banner here.
+        if !model.isSidebarVisible, case .ready(let version) = model.updateStatus, !model.isUpdateBannerDismissed {
             HStack {
                 Image(systemName: "sparkles").foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 1) {
@@ -399,7 +406,7 @@ struct NoticeBanner: View {
             .frame(maxWidth: 560)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("update.ready")
-        } else if let update = model.availableUpdate {
+        } else if !model.isSidebarVisible, let update = model.availableUpdate {
             HStack {
                 Image(systemName: "arrow.down.app.fill").foregroundStyle(.tint)
                 Text("Nera \(update.version) is available.").lineLimit(1)

@@ -270,6 +270,8 @@ public struct Tab: Codable, Hashable, Identifiable, Sendable {
     public var lastActiveAt: Date
     /// Whether the user muted the tab.
     public var isMuted: Bool
+    /// A name the user gave the tab (Rename…); shown instead of the page title, which keeps updating underneath.
+    public var customTitle: String?
 
     /// Creates a tab.
     public init(id: UUID, url: URL?, title: String = "", homeURL: URL? = nil, lastActiveAt: Date, isMuted: Bool = false) {
@@ -281,8 +283,9 @@ public struct Tab: Codable, Hashable, Identifiable, Sendable {
         self.isMuted = isMuted
     }
 
-    /// Title for display: the page title, else the host, else the URL, else "New Tab".
+    /// Title for display: the user's name for it, else the page title, else the host, else the URL, else "New Tab".
     public var displayTitle: String {
+        if let customTitle, !customTitle.isEmpty { return customTitle }
         if !title.isEmpty { return title }
         return url?.host() ?? url?.absoluteString ?? "New Tab"
     }

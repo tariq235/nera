@@ -4,6 +4,13 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.3 — 2026-11-09
+
+- **Move between tabs from the keyboard:** ⇧⌘] / ⇧⌘[, ⌥⌘↓ / ⌥⌘↑ and ⌃Tab / ⌃⇧Tab.
+- **Tab menu:** Rename… (your name stays while the page title changes), Duplicate, and Move to Space.
+- **Updates in the sidebar:** when a new version is ready, a card at the bottom of the sidebar says so; click it to
+  restart into the new version. After updating, a card shows what's new.
+
 ## 0.1.2 — 2026-11-09
 
 - **New window (⌘N):** another browser window with the same Spaces, pinned tabs and Favorites, its own Space

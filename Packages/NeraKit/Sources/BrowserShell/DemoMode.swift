@@ -167,6 +167,8 @@
                 try? await Task.sleep(for: .seconds(5))
             }
             if shot == "command" { model.showCommandBar(.newTab) }
+            if shot == "updateReady" { model.updateStatus = .ready(version: "0.1.3") }
+            if shot == "updated" { UserDefaults.standard.set("0.1.0", forKey: "NeraLastSeenVersion") }
             if shot == "editSpace", let id = model.state.spaces.first?.id { model.editSpace(id) }
             if shot == "newSpace" { model.newSpace() }
             if shot == "collapsed" { model.toggleSidebar() }

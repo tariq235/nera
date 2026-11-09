@@ -26,6 +26,9 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-054** Appearance follows the Mac by default; Settings › General › Appearance (Match Mac, Light, Dark, each Space's choice) — P0 · owner: nera · evidence: test:BrowserShellTests/followsTheMacUnlessChosenAndPrivateWindowsAreDark, test:BrowserShellTests/librariesFromBeforeTheSettingFollowTheMac
 - [ ] **FEAT-055** Right-click a Space: Change Space Icon, Rename Space, Edit Theme Color, Set Profile, New Folder, Delete Space — P1 · owner: nera · evidence: planned: UI test
 - [x] **FEAT-056** ⌘N opens a new browser window sharing the library, with its own Space and tab (ADR-0013) — P0 · owner: nera · evidence: test:NeraUITests/testCommandNOpensAnotherBrowserWindow, test:BrowserShellTests/windowsShareTheLibraryButEachKeepsItsTab, test:BrowserShellTests/pagesShownInAnyWindowSurviveMemoryPressure
+- [x] **FEAT-057** Tab shortcuts: ⇧⌘] / ⇧⌘[, ⌥⌘↓ / ⌥⌘↑, ⌃Tab / ⌃⇧Tab — P0 · owner: nera · evidence: file:Packages/NeraKit/Sources/BrowserShell/TabKeys.swift, test:BrowserCoreTests/tabCyclingWraps
+- [x] **FEAT-058** Updates in the sidebar: an animated "ready, click to restart" card, "updated" card with what's new and sponsoring once per version (Reduce Motion respected) — P1 · owner: nera · evidence: file:Packages/NeraKit/Sources/BrowserShell/UpdateCard.swift
+- [x] **FEAT-059** Tab menu: Rename…, Duplicate, Move to Space (besides Pin, Favorites, Split View, Copy URL, Close) — P0 · owner: nera · evidence: test:BrowserCoreTests/duplicateOpensTheSamePageRightBelowAndSelectsIt, test:BrowserCoreTests/moveToSpaceTakesTheTabToTheTopOfThatSpacesToday, test:BrowserCoreTests/aRenamedTabKeepsItsNameWhileThePageTitleChanges
 
 ## Must-have to switch (after the release gate)
 
