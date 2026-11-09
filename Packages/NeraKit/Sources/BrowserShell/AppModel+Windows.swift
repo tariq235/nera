@@ -43,6 +43,14 @@ extension AppModel {
         self.selection = WindowSelection(spaceID: store.state.selectedSpaceID, tabID: store.state.selectedTabID)
     }
 
+    /// The selected page is showing full screen (a video's full-screen button).
+    public var isPageFullscreen: Bool { pages.fullscreenPageID != nil && pages.fullscreenPageID == state.selectedTabID }
+
+    /// Leaves the selected page's full screen (the sidebar's "Exit Full Screen", Esc).
+    public func exitPageFullscreen() {
+        if let id = pages.fullscreenPageID { pages.existingPage(for: id)?.exitFullscreen() }
+    }
+
     /// The scene id of browser windows (⌘N opens another).
     public static let browserWindowID = "browser"
 

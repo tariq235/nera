@@ -198,9 +198,7 @@ public struct RootView: View {
         }
 
         /// The selected page is showing HTML full screen (a video's full-screen button): it fills the screen alone.
-        private var isPageFullscreen: Bool {
-            model.pages.fullscreenPageID != nil && model.pages.fullscreenPageID == model.state.selectedTabID
-        }
+        private var isPageFullscreen: Bool { model.isPageFullscreen }
     #endif
 
     @ViewBuilder private var layout: some View {
@@ -243,7 +241,9 @@ public struct RootView: View {
                 sidebarShown = model.isSidebarVisible
                 pageBesideSidebar = model.isSidebarVisible
             }
-            .overlay(alignment: .leading) { if !model.isSidebarVisible && !isPageFullscreen { peekingSidebar } }
+            .onChange(of: isPageFullscreen) { model.isSidebarPeeking = false }  // full screen starts and ends clean
+            // With the sidebar hidden, or over a full-screen video, the pointer at the left edge slides it in.
+            .overlay(alignment: .leading) { if !model.isSidebarVisible || isPageFullscreen { peekingSidebar } }
             // Every empty strip of the window (around the page, beside the window's buttons) acts as a title bar:
             // drag to move, double-click to zoom. Swipes are watched without taking any clicks.
             .background {
@@ -251,9 +251,7 @@ public struct RootView: View {
                     TitleBarArea()
                     SwipeNavigation(model: model, sidebarWidth: model.isSidebarVisible ? sidebarWidth : nil)
                     WindowButtons(visible: (sidebarShown || model.isSidebarPeeking) && !isPageFullscreen)
-                    FullScreenWindow(isOn: isPageFullscreen) {
-                        if let id = model.pages.fullscreenPageID { model.pages.existingPage(for: id)?.exitFullscreen() }
-                    }
+                    FullScreenWindow(isOn: isPageFullscreen) { model.exitPageFullscreen() }
                     TabKeys(model: model)
                 }
             }
