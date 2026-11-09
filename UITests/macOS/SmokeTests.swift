@@ -212,6 +212,28 @@ final class SmokeTests: XCTestCase {
         wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
     }
 
+    /// Dragging the sidebar's edge resizes it; the strip above the page is a title bar: dragging it moves the
+    /// window (and double-clicking zooms it, which depends on the Mac's settings, so isn't asserted here)
+    /// (FEAT-050, MAC-016).
+    func testSidebarEdgeResizesAndTitleStripMovesTheWindow() {
+        let handle = app.descendants(matching: .any)["sidebar.resizeHandle"]
+        XCTAssertTrue(handle.waitForExistence(timeout: 10))
+        let start = handle.frame.midX
+        let grip = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        grip.press(forDuration: 0.2, thenDragTo: grip.withOffset(CGVector(dx: 80, dy: 0)))
+        let wider = NSPredicate { _, _ in handle.frame.midX > start + 40 }
+        wait(for: [XCTNSPredicateExpectation(predicate: wider, object: nil)], timeout: 5)
+        let back = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        back.press(forDuration: 0.2, thenDragTo: back.withOffset(CGVector(dx: -80, dy: 0)))
+
+        let window = app.windows.firstMatch
+        let before = window.frame.origin
+        let strip = window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 4))
+        strip.press(forDuration: 0.2, thenDragTo: strip.withOffset(CGVector(dx: -60, dy: 40)))
+        let moved = NSPredicate { _, _ in window.frame.origin != before }
+        wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
+    }
+
     func testOpenCloseRestoreTab() {
         openViaCommandBar("data:text/html,<title>Smoke Page</title><h1>ok</h1>")
         XCTAssertTrue(sidebarTab("Smoke Page").waitForExistence(timeout: 15), "page title never reached the sidebar")

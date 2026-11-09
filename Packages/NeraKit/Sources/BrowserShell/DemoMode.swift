@@ -9,6 +9,7 @@
 //   ... --quick                         don't visit every tab first (faster; placeholder icons)
 //   ... --url <url>                     open this page first, in any scene
 //   ... --hold <seconds>                wait before the shot (time to drive the window from a test script)
+//   ... --frames <dir>                  with --shot retoggle: record the window during both animations
 //   ... --shot <name>                    which scene: hero (default), command, start, split, editSpace, newSpace,
 //                                        or a welcome step: welcome-intro, welcome-essentials, welcome-privacy,
 //                                        welcome-source, welcome-spaces, welcome-extensions, welcome-favorites,
@@ -186,6 +187,7 @@
                 try? await Task.sleep(for: .seconds(8))
             }
             if shot == "retoggle" {  // hide and show the sidebar again (⌘S twice)
+                if let dir = argument(after: "--frames") { recordFrames(to: dir, seconds: 3.5) }
                 model.toggleSidebar()
                 try? await Task.sleep(for: .seconds(1.5))
                 model.toggleSidebar()
@@ -242,6 +244,30 @@
 
         /// Saves the app's main window (with its shadow) as PNG. CGWindowListCreateImage is gone from the SDK
         /// headers but still in CoreGraphics; looked up at runtime, Debug only.
+        /// `--frames <dir>`: saves the window as fast as possible for `seconds`, from a background thread so the
+        /// animation being recorded isn't slowed down (file names carry the time in milliseconds).
+        static func recordFrames(to dir: String, seconds: Double) {
+            guard let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }) else { return }
+            let number = UInt32(window.windowNumber)
+            Thread.detachNewThread {
+                typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
+                guard let handle = dlopen("/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics", RTLD_NOW),
+                    let symbol = dlsym(handle, "CGWindowListCreateImage")
+                else { return }
+                let create = unsafeBitCast(symbol, to: CreateImage.self)
+                let start = Date()
+                var index = 0
+                while Date().timeIntervalSince(start) < seconds {
+                    let ms = Int(Date().timeIntervalSince(start) * 1000)
+                    guard let image = create(.null, 1 << 3, number, 1 << 4)?.takeRetainedValue(),
+                        let jpeg = NSBitmapImageRep(cgImage: image).representation(using: .jpeg, properties: [.compressionFactor: 0.6])
+                    else { continue }
+                    try? jpeg.write(to: URL(fileURLWithPath: dir).appending(path: String(format: "f%04d_%05d.jpg", index, ms)))
+                    index += 1
+                }
+            }
+        }
+
         static func capture(to url: URL, window chosen: NSWindow? = nil) -> Bool {
             typealias CreateImage = @convention(c) (CGRect, UInt32, UInt32, UInt32) -> Unmanaged<CGImage>?
             guard let window = chosen ?? NSApp.windows.first(where: { $0.isVisible && $0.canBecomeMain }),
