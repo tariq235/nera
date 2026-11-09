@@ -43,6 +43,7 @@ public struct BrowserCommands: Commands {
         }
         CommandGroup(replacing: .newItem) {
             Button("New Tab…") { model.showCommandBar(.newTab) }.keyboardShortcut("t")
+            Button("New Window") { openWindow(id: AppModel.browserWindowID) }.keyboardShortcut("n")
             Button("Open Location…") { model.showCommandBar(.currentTab) }.keyboardShortcut("l")
             Button("New Private Window") { openWindow(id: AppModel.privateWindowID) }.keyboardShortcut("n", modifiers: [.command, .shift])
             Button("New Tab in Split View…") { model.showCommandBar(.splitWithCurrent) }.keyboardShortcut(

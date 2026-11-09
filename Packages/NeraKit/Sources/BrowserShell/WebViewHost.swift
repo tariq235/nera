@@ -18,23 +18,72 @@ import SwiftUI
 
         func makeNSView(context: Context) -> PageContainerView {
             let container = PageContainerView()
-            attach(page.view, to: container)
+            container.page = page.view
             return container
         }
 
         func updateNSView(_ container: PageContainerView, context: Context) {
-            if container.subviews.first !== page.view { attach(page.view, to: container) }
+            container.page = page.view
             container.exposesPage = isAccessible
         }
     }
 
-    /// Container whose accessibility children can be withheld while a modal prompt is up.
+    /// Holds a page's view. Several browser windows can select the same tab, but a view lives in one window: the
+    /// window being used shows it, the others say where it is until they're used (ADR-0013).
     final class PageContainerView: NSView {
+        var page: NSView? {
+            didSet { if page !== oldValue { showPageIfFree() } }
+        }
+        private let elsewhere = NSTextField(labelWithString: "Showing in another window")
+
         var exposesPage = true {
             didSet {
                 guard exposesPage != oldValue else { return }
                 NSAccessibility.post(element: self, notification: .layoutChanged)
             }
+        }
+
+        private var keyObserver: (any NSObjectProtocol)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
+            keyObserver = nil
+            guard let window else { return }
+            // This window is now the one in use: show the page here if another window had it.
+            keyObserver = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) {
+                [weak self] _ in MainActor.assumeIsolated { self?.showPageIfFree(force: true) }
+            }
+            showPageIfFree()
+        }
+
+        override func willRemoveSubview(_ subview: NSView) {
+            super.willRemoveSubview(subview)
+            // Another window took the page: say where it went. Only while this view is on screen: a view being
+            // freed also removes its subviews, and must not be referenced then.
+            guard subview === page, window != nil else { return }
+            DispatchQueue.main.async { [weak self] in self?.showPageIfFree() }
+        }
+
+        /// Shows the page here unless another window that's in use shows it; `force`: this window is now in use.
+        private func showPageIfFree(force: Bool = false) {
+            guard let page, window != nil else { return }
+            if page.superview === self { return elsewhere.removeFromSuperview() }
+            let shownElsewhere = page.window != nil && page.window !== window
+            if shownElsewhere && !force && page.window?.isKeyWindow == true {
+                if elsewhere.superview == nil {
+                    elsewhere.textColor = .secondaryLabelColor
+                    elsewhere.translatesAutoresizingMaskIntoConstraints = false
+                    addSubview(elsewhere)
+                    NSLayoutConstraint.activate([
+                        elsewhere.centerXAnchor.constraint(equalTo: centerXAnchor),
+                        elsewhere.centerYAnchor.constraint(equalTo: centerYAnchor),
+                    ])
+                }
+                return
+            }
+            elsewhere.removeFromSuperview()
+            attach(page, to: self)
         }
 
         override func accessibilityChildren() -> [Any]? {

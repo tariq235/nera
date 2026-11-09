@@ -25,7 +25,7 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-053** Private window: full size over the main window, command bar ready, ⌘W closes it while empty — P0 · owner: nera · evidence: test:NeraUITests/testEmptyPrivateWindowClosesWithCommandW, test:BrowserShellTests/privateWindowsAreSeparateAndEphemeral
 - [x] **FEAT-054** Appearance follows the Mac by default; Settings › General › Appearance (Match Mac, Light, Dark, each Space's choice) — P0 · owner: nera · evidence: test:BrowserShellTests/followsTheMacUnlessChosenAndPrivateWindowsAreDark, test:BrowserShellTests/librariesFromBeforeTheSettingFollowTheMac
 - [ ] **FEAT-055** Right-click a Space: Change Space Icon, Rename Space, Edit Theme Color, Set Profile, New Folder, Delete Space — P1 · owner: nera · evidence: planned: UI test
-- [ ] **FEAT-056** ⌘N opens a new browser window sharing the library, with its own Space and tab (ADR-0013) — P0 · owner: nera · evidence: planned: in progress
+- [x] **FEAT-056** ⌘N opens a new browser window sharing the library, with its own Space and tab (ADR-0013) — P0 · owner: nera · evidence: test:NeraUITests/testCommandNOpensAnotherBrowserWindow, test:BrowserShellTests/windowsShareTheLibraryButEachKeepsItsTab, test:BrowserShellTests/pagesShownInAnyWindowSurviveMemoryPressure
 
 ## Must-have to switch (after the release gate)
 

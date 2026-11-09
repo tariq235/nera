@@ -54,15 +54,19 @@ struct StartPage: View {
             VStack(spacing: 6) {
                 Text(Self.greeting(for: context.date))
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .accessibilityIdentifier("start.greeting")
                 Text(context.date.formatted(.dateTime.weekday(.wide).day().month(.wide)))
                     .font(.title3)
                     .foregroundStyle(Self.secondaryText)
+                    .accessibilityIdentifier("start.date")
             }
         }
     }
 
     /// Secondary text on the translucent start page: 5.6:1 contrast (`.secondary` measures about 4:1, under WCAG AA).
     static let secondaryText = Color.primary.opacity(0.7)
+    /// Small print (the footer): darker, since thin strokes at footnote size read lighter than their color.
+    static let smallText = Color.primary.opacity(0.8)
 
     static func greeting(for date: Date) -> String {
         switch Calendar.current.component(.hour, from: date) {
@@ -141,7 +145,8 @@ struct StartPage: View {
                     ? "HTTPS-Only is on · no telemetry · your data stays on this Mac" : "No telemetry · your data stays on this Mac")
         }
         .font(.footnote)
-        .foregroundStyle(Self.secondaryText)
+        .foregroundStyle(Self.smallText)
+        .accessibilityIdentifier("start.privacyLine")
     }
 }
 

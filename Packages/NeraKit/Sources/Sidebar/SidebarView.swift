@@ -95,6 +95,7 @@ public struct SidebarView: View {
                 Text("Private Tabs").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.top, 4)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("sidebar.privateTabs")
             } else {
                 SpaceHeader(host: host, space: space)
             }

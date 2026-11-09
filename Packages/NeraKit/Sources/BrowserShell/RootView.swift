@@ -36,7 +36,6 @@ public struct RootView: View {
     /// The window content.
     public var body: some View {
         layout
-            .accessibilityHidden(model.isCommandBarPresented)  // the command bar is modal (A11Y-003)
             .focusedSceneValue(\.neraModel, model)
             .preferredColorScheme(colorScheme)
             .background(
@@ -484,28 +483,49 @@ struct SidebarAccessories: View {
 #if os(macOS)
     /// A private window opens at once (no zoom-in), dark from its first frame (no white flash), with exactly the
     /// size and place of the browser window behind it: it's a full browser window, not a small one.
-    struct MatchMainWindowFrame: NSViewRepresentable {
-        func makeNSView(context: Context) -> NSView { Matcher() }
+    struct MatchMainWindowFrame: View {
+        var body: some View { MatchFrontWindowFrame(offset: .zero, isDark: true) }
+    }
+
+    /// Opens a window at once with the size of the browser window in front, moved by `offset` (nil: leave the
+    /// window where it is). It stays invisible until it's in place, so it never appears somewhere else first.
+    struct MatchFrontWindowFrame: NSViewRepresentable {
+        var offset: CGSize?
+        var isDark = false
+
+        func makeNSView(context: Context) -> NSView {
+            let view = Matcher()
+            view.offset = offset
+            view.isDark = isDark
+            return view
+        }
+
         func updateNSView(_ nsView: NSView, context: Context) {}
 
         final class Matcher: NSView {
+            var offset: CGSize?
+            var isDark = false
+            private var placed = false
+
             override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
             override func viewDidMoveToWindow() {
                 super.viewDidMoveToWindow()
-                guard let window else { return }
+                guard let window, let offset, !placed else { return }
+                placed = true
                 window.animationBehavior = .none
-                window.appearance = NSAppearance(named: .darkAqua)
-                window.backgroundColor = NSColor(white: 0.13, alpha: 1)
+                if isDark {
+                    window.appearance = NSAppearance(named: .darkAqua)
+                    window.backgroundColor = NSColor(white: 0.13, alpha: 1)
+                }
                 guard
-                    let main = NSApp.orderedWindows.first(where: {
+                    let front = NSApp.orderedWindows.first(where: {
                         $0 !== window && $0.isVisible && $0.canBecomeMain && $0.frame.width >= 820
                     })
                 else { return }
-                let frame = main.frame
+                let frame = front.frame.offsetBy(dx: offset.width, dy: offset.height)
                 window.setFrame(frame, display: false)
-                // AppKit staggers new windows when it shows them: keep it invisible until it's back over the main
-                // window, so it never appears in the wrong place first.
+                // AppKit staggers new windows when it shows them: keep it invisible until it's in place.
                 window.alphaValue = 0
                 DispatchQueue.main.async {
                     window.setFrame(frame, display: true)

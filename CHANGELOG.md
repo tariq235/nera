@@ -4,6 +4,21 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.2 — 2026-11-09
+
+- **New window (⌘N):** another browser window with the same Spaces, pinned tabs and Favorites, its own Space
+  and tab, and the command bar ready.
+- **Command bar (⌘T, ⌘L):** appears at once over the page; your open tabs before you type, with site icons and
+  "Switch to Tab"; the highlight takes the Space's color. Esc or a click anywhere else closes it, and the
+  sidebar stays usable (switch Spaces with a two-finger swipe).
+- **⌘W** closes what's in front: the command bar, otherwise the tab. It never closes the main window.
+- **Private windows (⇧⌘N):** open at once over your window at its full size, with the command bar ready; one
+  list of private tabs; ⌘W closes an empty one.
+- **Appearance:** follows your Mac's light or dark setting. Settings › General › Appearance chooses Light, Dark
+  or each Space's own.
+- **Right-click a Space** to change its icon, name or theme color, its profile, add a folder or delete it.
+- Faster sidebar slide (⌘S).
+
 ## 0.1.1 — 2026-11-08
 
 - Pages are no longer drawn shifted after showing or hiding the sidebar: the top of the page was cut off and

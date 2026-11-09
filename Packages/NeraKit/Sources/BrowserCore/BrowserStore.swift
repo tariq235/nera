@@ -1,7 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was
 // not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import Foundation
+public import Foundation
 public import Observation
 
 /// Persists the library. Implemented by `Storage` (JSON on disk, in-memory for tests and UI tests).
@@ -49,6 +49,16 @@ public final class BrowserStore {
         let effects = Reducer.reduce(&state, action, env)
         scheduleSave()
         for effect in effects { effectHandler?(effect) }
+    }
+
+    /// Makes a browser window's selection the library's before that window acts (several windows share one
+    /// library, each with its own Space and tab). A Space or tab that no longer exists isn't restored. No effects.
+    public func restoreSelection(spaceID: UUID, tabID: UUID?) {
+        guard state.spaces.contains(where: { $0.id == spaceID }) else { return }
+        let tab = tabID.flatMap { state.locate($0) == nil ? nil : $0 }
+        guard state.selectedSpaceID != spaceID || state.selectedTabID != tab else { return }
+        state.selectedSpaceID = spaceID
+        state.selectedTabID = tab
     }
 
     /// Writes immediately, e.g. when the app quits or moves to the background.

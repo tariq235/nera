@@ -13,6 +13,28 @@ import SecurityPolicy
 
 // Find in page and zoom.
 extension AppModel {
+    /// The selected tab's live page (created on demand in its profile's engine).
+    public var selectedPage: (any WebPage)? {
+        guard let tab = state.selectedTab, let profile = state.currentProfile else { return nil }
+        registerShownTabs()
+        return pages.page(for: tab, profile: profile)
+    }
+
+    /// Tells the pages which tabs this window shows (its tab and Split View panes), so none is freed while shown.
+    func registerShownTabs() {
+        let split = state.selectedSplit.map { Set($0.tabs.map(\.id)) } ?? []
+        pages.setShownTabs(split.union(state.selectedTabID.map { [$0] } ?? []), by: ObjectIdentifier(self))
+    }
+
+    /// Whether the selected tab's page crashed.
+    public var selectedTabCrashed: Bool { state.selectedTabID.map(pages.crashedTabs.contains) ?? false }
+
+    /// Recreates the selected tab's crashed page.
+    public func reloadCrashedTab() {
+        guard let tab = state.selectedTab, let profile = state.currentProfile else { return }
+        pages.reloadCrashed(tab, profile: profile)
+    }
+
     /// Chrome's zoom steps.
     public static let zoomSteps: [Double] = [0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5]
 
@@ -92,11 +114,10 @@ extension AppModel {
     /// Split View: every tab of the selected tab's split with its live page, in display order. Empty when the
     /// selected tab isn't in a split. Keeps all panes loaded (they're on screen).
     public var splitPanes: [(tab: BrowserCore.Tab, page: any WebPage)] {
+        registerShownTabs()
         guard let split = state.selectedSplit, let profile = state.currentProfile, let selected = state.selectedTabID else {
-            pages.visibleTabIDs = []
             return []
         }
-        pages.visibleTabIDs = Set(split.tabs.map(\.id))
         // The selected pane last, so it stays the active page.
         let ordered = split.tabs.filter { $0.id != selected } + split.tabs.filter { $0.id == selected }
         let live = Dictionary(uniqueKeysWithValues: ordered.map { ($0.id, pages.page(for: $0, profile: profile)) })

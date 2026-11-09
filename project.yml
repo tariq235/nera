@@ -16,7 +16,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.0"
+    MARKETING_VERSION: "0.1.2"
     CURRENT_PROJECT_VERSION: "1"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEAD_CODE_STRIPPING: YES
@@ -109,7 +109,7 @@ targets:
       path: Apps/macOS/Info.plist
       properties:
         CFBundleDisplayName: Nera
-        CFBundleShortVersionString: $(MARKETING_VERSION)   # the version users see (0.1.0)
+        CFBundleShortVersionString: $(MARKETING_VERSION)   # the version users see (0.1.2)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)         # the build number updates compare (make-dmg.sh sets it)
         NSPrincipalClass: NRAChromiumApplication   # CEF's CefAppProtocol NSApplication (harmless when Chromium is off)
         LSEnvironment: { MallocNanoZone: "0" }     # CEF requirement

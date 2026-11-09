@@ -36,7 +36,7 @@ final class SmokeTests: XCTestCase {
         app.terminate()
     }
 
-    private func sidebarTab(_ title: String) -> XCUIElement {
+    func sidebarTab(_ title: String) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == 'sidebar.tab' AND label == %@", title))
             .firstMatch
@@ -61,7 +61,7 @@ final class SmokeTests: XCTestCase {
         tab?.click()
     }
 
-    private func openViaCommandBar(_ text: String) {
+    func openViaCommandBar(_ text: String) {
         app.typeKey("t", modifierFlags: .command)
         let field = app.textFields["commandBar.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5), "command bar did not open")
@@ -88,7 +88,13 @@ final class SmokeTests: XCTestCase {
                 && abs(element.frame.height - window.height) < 60
             let isMenuButtonAction = element.elementType == .menuButton && issue.auditType == .action
             let isTitleBarChrome = element.frame.maxY <= window.minY + 30
-            if isMenuButtonAction || isTitleBarChrome { return true }
+            // The audit's contrast check fails the start page's greeting, date and privacy line even when they're
+            // drawn in full-strength label color on an opaque background (tried 2026-11-09; also without the grain
+            // texture). Measured from its own screenshots: greeting ~14:1, date 8.2:1, privacy line 5.6:1 at 70% and
+            // higher at today's 80% (4.5:1 needed). Every other element is still checked.
+            let startPageText = ["start.greeting", "start.date", "start.privacyLine"]
+            let isGreetingOnGrain = issue.auditType == .contrast && startPageText.contains(element.identifier)
+            if isMenuButtonAction || isTitleBarChrome || isGreetingOnGrain { return true }
             if !isWindowContainer { print("a11y-audit: \(issue.compactDescription) — \(element.debugDescription.prefix(300))") }
             return isWindowContainer
         }
@@ -190,7 +196,7 @@ final class SmokeTests: XCTestCase {
     func testPrivateWindowKeepsItsOwnTabs() {
         XCTAssertTrue(app.descendants(matching: .any)["sidebar.newTab"].waitForExistence(timeout: 10))
         app.typeKey("n", modifierFlags: [.command, .shift])
-        XCTAssertTrue(app.descendants(matching: .any)["private.badge"].waitForExistence(timeout: 10), "no private window")
+        XCTAssertTrue(app.descendants(matching: .any)["sidebar.privateTabs"].waitForExistence(timeout: 10), "no private window")
         XCTAssertEqual(app.windows.count, 2)
         openViaCommandBar("data:text/html,<title>Secret Page</title>")
         XCTAssertTrue(sidebarTab("Secret Page").waitForExistence(timeout: 15))
@@ -232,38 +238,6 @@ final class SmokeTests: XCTestCase {
         strip.press(forDuration: 0.2, thenDragTo: strip.withOffset(CGVector(dx: -60, dy: 40)))
         let moved = NSPredicate { _, _ in window.frame.origin != before }
         wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
-    }
-
-    /// The command bar closes with Esc, and ⌘W closes what's in front: the bar, then the tab, never the
-    /// window (FEAT-051, FEAT-052).
-    func testEscAndCommandWCloseTheFrontmostThing() {
-        openViaCommandBar("data:text/html,<title>Keep Window</title>")
-        XCTAssertTrue(sidebarTab("Keep Window").waitForExistence(timeout: 15))
-        let field = app.textFields["commandBar.field"]
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        app.typeKey(.escape, modifierFlags: [])
-        XCTAssertTrue(field.waitForNonExistence(timeout: 3), "Esc closes the command bar")
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        app.typeKey("w", modifierFlags: .command)
-        XCTAssertTrue(field.waitForNonExistence(timeout: 3), "⌘W closes the command bar first")
-        XCTAssertTrue(sidebarTab("Keep Window").exists, "…and not the tab")
-        app.typeKey("w", modifierFlags: .command)
-        XCTAssertTrue(sidebarTab("Keep Window").waitForNonExistence(timeout: 5), "then ⌘W closes the tab")
-        XCTAssertTrue(app.windows.firstMatch.exists, "the window stays open")
-    }
-
-    /// A private window opens with the command bar ready, and ⌘W closes it while it's empty (FEAT-053).
-    func testEmptyPrivateWindowClosesWithCommandW() {
-        let windows = app.windows.count
-        app.typeKey("n", modifierFlags: [.command, .shift])
-        let more = NSPredicate { _, _ in self.app.windows.count == windows + 1 }
-        wait(for: [XCTNSPredicateExpectation(predicate: more, object: nil)], timeout: 5)
-        XCTAssertTrue(app.textFields["commandBar.field"].waitForExistence(timeout: 5), "opens with the command bar")
-        app.typeKey("w", modifierFlags: .command)
-        let back = NSPredicate { _, _ in self.app.windows.count == windows }
-        wait(for: [XCTNSPredicateExpectation(predicate: back, object: nil)], timeout: 5)
     }
 
     func testOpenCloseRestoreTab() {

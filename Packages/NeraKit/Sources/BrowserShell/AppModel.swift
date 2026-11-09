@@ -125,8 +125,9 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var notice: String?
     /// Assistive apps and Chromium pages (A11Y-009, WebAccessibility.swift).
     public var assistive = AssistiveAppsState()
-    /// Phishing and malware protection (AppModel+SafeBrowsing.swift).
-    public var safety = SafeBrowsingState()
+    @ObservationIgnored var safetyBox = SafetyBox()
+    /// This window's Space and tab when several browser windows share the library (ADR-0013); nil: the library's.
+    var selection: WindowSelection?
     /// Started in safe mode after repeated failed launches (SEC-054).
     public private(set) var isSafeMode = false
 
@@ -201,6 +202,17 @@ public final class AppModel: SidebarHost, CommandBarHost {
         startBackgroundSweeps()
     }
 
+    /// A browser window sharing `main`'s library, pages and services (see `window(sharing:)`). The page callbacks,
+    /// background sweeps and memory monitor stay with `main`.
+    init(sharing main: AppModel) {
+        store = main.store
+        pages = main.pages
+        history = main.history
+        favicons = main.favicons
+        extensionStore = main.extensionStore
+        safetyBox = main.safetyBox
+    }
+
     /// Safe mode: nothing loads until the user picks a tab, and the banner says why (SEC-054).
     func enterSafeMode() {
         isSafeMode = true
@@ -209,12 +221,6 @@ public final class AppModel: SidebarHost, CommandBarHost {
             "Nera started in safe mode after problems at launch: pages aren't reopened automatically"
             + " and the WebKit engine is used. Quit and reopen Nera to leave safe mode."
     }
-
-    /// The library.
-    public var state: BrowserState { store.state }
-
-    /// Sends an action to the store.
-    public func send(_ action: Action) { store.send(action) }
 
     // MARK: SidebarHost & CommandBarHost
 
@@ -264,21 +270,6 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public func dismissCommandBar() { isCommandBarPresented = false }
 
     // MARK: Pages
-
-    /// The selected tab's live page (created on demand in its profile's engine).
-    public var selectedPage: (any WebPage)? {
-        guard let tab = state.selectedTab, let profile = state.currentProfile else { return nil }
-        return pages.page(for: tab, profile: profile)
-    }
-
-    /// Whether the selected tab's page crashed.
-    public var selectedTabCrashed: Bool { state.selectedTabID.map(pages.crashedTabs.contains) ?? false }
-
-    /// Recreates the selected tab's crashed page.
-    public func reloadCrashedTab() {
-        guard let tab = state.selectedTab, let profile = state.currentProfile else { return }
-        pages.reloadCrashed(tab, profile: profile)
-    }
 
     /// The oldest request waiting in the selected tab.
     public var currentRequest: PageRequest? {
