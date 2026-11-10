@@ -7,55 +7,78 @@ import EngineKit
 import SecurityPolicy
 public import SwiftUI
 
-/// Peek: a link from a Favorite or pinned tab, floating over the current page. Keep it as a tab, or close it
-/// (Escape, the close button, or a click outside).
+/// Peek: a link from a Favorite or pinned tab, over the current page, laid out like Arc's (measured): the page in
+/// the middle at nearly full height, the rest washed in the Space's selection color, and round buttons beside it:
+/// Close (Esc, or a click outside), Open as Tab (⌘O), and Split View. The address pill shows the Peek page's site.
 struct PeekView: View {
     @Bindable var model: AppModel
     let page: any WebPage
 
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.28)
-                .contentShape(Rectangle())
-                .onTapGesture { model.closePeek() }
-                .accessibilityHidden(true)
-            VStack(spacing: 0) {
-                PageBar(page: page) {
-                    Button {
-                        model.openPeekAsTab()
-                    } label: {
-                        Label("Open as Tab", systemImage: "arrow.up.left.and.arrow.down.right")
-                    }
-                    .buttonStyle(PeekButtonStyle(prominent: true))
-                    .keyboardShortcut("o", modifiers: .command)
-                    .help("Keep this page as a tab (⌘O)")
-                    .accessibilityIdentifier("peek.openAsTab")
-                    Button {
-                        model.closePeek()
-                    } label: {
-                        Image(systemName: "xmark").font(.system(size: 11, weight: .bold))
-                    }
-                    .buttonStyle(PeekButtonStyle(prominent: false))
-                    .keyboardShortcut(.cancelAction)
-                    .help("Close (Esc)")
-                    .accessibilityLabel("Close Peek")
-                    .accessibilityIdentifier("peek.close")
-                }
+        GeometryReader { geo in
+            let inset = max(48, geo.size.width * 0.085)
+            ZStack(alignment: .topLeading) {
+                Theme.focus(for: model.displayedTheme).opacity(0.97)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.closePeek() }
+                    .accessibilityHidden(true)
                 WebViewHost(page: page, isAccessible: model.safety.dangerousSites[page.id] == nil)
                     .overlay { PendingRequest(model: model, pageID: page.id) }
                     .overlay { DangerousSiteOverlay(model: model, pageID: page.id) }
+                    .overlay(alignment: .top) { PageProgressBar(page: page) }
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(.black.opacity(0.08)))
+                    .shadow(color: .black.opacity(0.22), radius: 18, y: 6)
+                    .frame(width: max(geo.size.width - inset * 2, 0), height: max(geo.size.height - 12, 0))
+                    .offset(x: inset, y: 6)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("Peek")
+                    .accessibilityIdentifier("peek")
+                VStack(spacing: 9) {
+                    PeekCircleButton(symbol: "xmark", help: "Close (Esc)", theme: model.displayedTheme) { model.closePeek() }
+                        .keyboardShortcut(.cancelAction)
+                        .accessibilityLabel("Close Peek")
+                        .accessibilityIdentifier("peek.close")
+                    PeekCircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: "Open as Tab (⌘O)", theme: model.displayedTheme) {
+                        model.openPeekAsTab()
+                    }
+                    .keyboardShortcut("o", modifiers: .command)
+                    .accessibilityLabel("Open as Tab")
+                    .accessibilityIdentifier("peek.openAsTab")
+                    PeekCircleButton(symbol: "rectangle.split.2x1", help: "Open in Split View", theme: model.displayedTheme) {
+                        model.openPeekInSplitView()
+                    }
+                    .accessibilityLabel("Open in Split View")
+                    .accessibilityIdentifier("peek.splitView")
+                }
+                .offset(x: geo.size.width - inset + 11, y: 14)
             }
-            .padding(6)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(0.2)))
-            .shadow(color: .black.opacity(0.3), radius: 30, y: 12)
-            .padding(.horizontal, 36)
-            .padding(.vertical, 26)
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Peek")
-            .accessibilityIdentifier("peek")
         }
+    }
+}
+
+/// One of Peek's round buttons: white, with the icon in the Space's deep color (Arc's look).
+struct PeekCircleButton: View {
+    let symbol: String
+    let help: String
+    let theme: SpaceTheme?
+    let action: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(Theme.deepTone(for: theme))
+                .frame(width: 27, height: 27)
+                .background(Circle().fill(.white))
+                .shadow(color: .black.opacity(isHovering ? 0.25 : 0.15), radius: isHovering ? 4 : 2, y: 1)
+                .scaleEffect(isHovering ? 1.06 : 1)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { hovering in withAnimation(.easeOut(duration: 0.12)) { isHovering = hovering } }
     }
 }
 

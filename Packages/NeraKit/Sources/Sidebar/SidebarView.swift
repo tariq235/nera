@@ -130,7 +130,7 @@ struct SpaceMenuItems: View {
         Button("Edit Theme Color…") { host.editSpace(space.id) }
         // A Space imported from Arc before Nera brought colors over: its exact Arc colors, one click away.
         if let arc = host.arcTheme(for: space.id), !space.theme.looksLike(arc) {
-            Button("Use Colors from Arc") { host.send(.space(.customize(space.id, icon: nil, theme: arc))) }
+            Button("Use Colors from Arc") { host.send(.space(.customize(space.id, icon: nil, theme: arc))) }  // naming: import-reference
         }
         if host.state.profiles.count > 1 {
             Menu("Set Profile") {
@@ -281,19 +281,7 @@ struct FavoritesGrid: View {
         let favorites = host.state.currentProfile?.favorites ?? []
         if !favorites.isEmpty {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(favorites) { tab in
-                    Button {
-                        host.send(.tab(.select(tab.id)))
-                    } label: {
-                        SiteIcon(url: tab.url, size: 20, png: host.favicon(for: tab))
-                            .frame(maxWidth: .infinity, minHeight: 46)
-                            .contentShape(Rectangle())
-                            .surface(host.state.selectedTabID == tab.id ? .selected : .resting, cornerRadius: 11)
-                    }
-                    .buttonStyle(.plain)
-                    .help(tab.displayTitle)
-                    .contextMenu { TabMenu(host: host, tab: tab) }
-                }
+                ForEach(favorites) { tab in FavoriteTile(host: host, tab: tab) }
             }
             .dropDestination(for: String.self) { items, _ in handleSidebarDrop(items, on: host, to: .favorites) }
         }
@@ -370,12 +358,13 @@ struct TabRow: View {
     @State private var isHovering = false
     @State private var isRenaming = false
     @State private var newName = ""
+    @State private var isChangingIcon = false
 
     private var isSelected: Bool { host.state.selectedTabID == tab.id }
 
     var body: some View {
         HStack(spacing: 8) {
-            SiteIcon(url: tab.url, size: 14, png: host.favicon(for: tab))
+            TabIcon(tab: tab, size: 14, png: host.favicon(for: tab))
             Text(tab.displayTitle).lineLimit(1)
                 .fontWeight(isSelected ? .medium : .regular)
             Spacer(minLength: 4)
@@ -397,9 +386,18 @@ struct TabRow: View {
         .onTapGesture { host.send(.tab(.select(tab.id))) }
         .onHover { isHovering = $0 }
         .contextMenu {
-            TabMenu(host: host, tab: tab) {
-                newName = tab.displayTitle
-                isRenaming = true
+            TabMenu(
+                host: host, tab: tab,
+                rename: {
+                    newName = tab.displayTitle
+                    isRenaming = true
+                },
+                changeIcon: { isChangingIcon = true })
+        }
+        .popover(isPresented: $isChangingIcon, arrowEdge: .trailing) {
+            TabIconPicker(current: tab.customIcon) { emoji in
+                host.send(.tab(.setIcon(tab.id, emoji: emoji)))
+                isChangingIcon = false
             }
         }
         .alert("Rename Tab", isPresented: $isRenaming) {
@@ -414,66 +412,6 @@ struct TabRow: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("sidebar.tab")
         .accessibilityLabel(tab.displayTitle)
-    }
-}
-
-struct TabMenu: View {
-    let host: any SidebarHost
-    let tab: Tab
-    /// Shows "Rename…" (rows that can show the rename dialog).
-    var rename: (() -> Void)?
-
-    var body: some View {
-        let location = host.state.locate(tab.id)?.location
-        let isPinned: Bool = {
-            if case .space(_, .pinned)? = location { return true }
-            if case .favorite? = location { return true }
-            return false
-        }()
-        let isFavorite: Bool = {
-            if case .favorite? = location { return true }
-            return false
-        }()
-        Button(isPinned ? "Unpin" : "Pin") { host.send(.tab(.togglePin(tab.id))) }
-        if case .favorite? = location {
-        } else {
-            Button("Add to Favorites") { host.send(.tab(.addToFavorites(tab.id))) }
-        }
-        if tab.homeURL != nil, tab.homeURL != tab.url {
-            Button("Reset to Original URL") { host.send(.tab(.resetToHome(tab.id))) }
-        }
-        if let rename { Button("Rename…", action: rename) }
-        if tab.url != nil { Button("Duplicate") { host.send(.tab(.duplicate(tab.id))) } }
-        let otherSpaces = host.state.spaces.filter { space in
-            if case .space(let id, _)? = location { return space.id != id }
-            return true
-        }
-        if !otherSpaces.isEmpty, !host.isPrivateSession {
-            Menu("Move to Space") {
-                ForEach(otherSpaces) { space in
-                    Button {
-                        host.send(.tab(.moveToSpace(tab.id, spaceID: space.id)))
-                    } label: {
-                        Label {
-                            Text(space.title)
-                        } icon: {
-                            SpaceIconView(icon: space.icon)
-                        }
-                    }
-                }
-            }
-        }
-        Divider()
-        if let selected = host.state.selectedTabID, selected != tab.id, !isFavorite {
-            Button("Split View with Current Tab") { host.send(.tab(.splitWith(selected, other: tab.id))) }
-        }
-        if host.state.selectedSpace.map({ ($0.pinned + $0.today).split(containing: tab.id) != nil }) == true {
-            Button("Remove from Split View") { host.send(.tab(.removeFromSplit(tab.id))) }
-        }
-        Divider()
-        Button("Copy URL") { Clipboard.copy(tab.url?.absoluteString ?? "") }
-        Divider()
-        Button(isPinned ? "Unload" : "Close", role: .destructive) { host.send(.tab(.close(tab.id))) }
     }
 }
 

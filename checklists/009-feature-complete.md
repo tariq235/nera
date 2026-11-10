@@ -37,6 +37,9 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-065** Arc import keeps each Space's exact colors (color, intensity, light/dark selection colors); Spaces imported earlier get them from the Space menu — P0 · owner: nera · evidence: test:ImportTests/aSpaceKeepsItsColorIntensityAndSelectionColors, test:ImportTests/spaceColorsAreFoundByTheSpacesID
 - [x] **FEAT-066** Command bar matches Arc's measured layout: 50.6% of the window wide, centered on it, top at 31.5%; opaque panel, selection-style completion, Space-tinted highlight; site icons found with or without "www." — P0 · owner: nera · evidence: test:StorageTests/wwwAndTheBareDomainShareAnIcon, file:Packages/NeraKit/Sources/CommandBar/CommandBarView.swift
 - [x] **FEAT-067** ⌘W goes back to the tab used before the closed one (most recently used in the Space or Favorites) — P0 · owner: nera · evidence: test:BrowserCoreTests/closingATabGoesBackToTheTabUsedBeforeIt
+- [x] **FEAT-068** A clicked link that leaves a Favorite's or pinned tab's site opens in Peek (stopped before any request, both engines); the tab stays; the tile shows the Peek site's icon — P0 · owner: nera · evidence: test:BrowserShellTests/linksLeavingAPinnedTabsSiteOpenInPeekAndTheTabStays, test:SecurityPolicyTests/peekRouteTakesOnlyClickedLinks
+- [x] **FEAT-069** Peek laid out like Arc's (Space-colored wash, Close / Open as Tab / Split View beside it); the address pill shows the Peek page — P1 · owner: nera · evidence: file:Packages/NeraKit/Sources/BrowserShell/PeekAndLittleWindow.swift
+- [x] **FEAT-070** Tab menu in Arc's order with Change Icon, Rename, Mute, Customize Page, Edit Pinned Page, Add Split View (Favorites too), Move to, Remove Favorite — P0 · owner: nera · evidence: test:NeraUITests/testFavoriteMenuMovesRenamesAndOffersArcsItems, test:BrowserCoreTests/tabsTakeAnEmojiIconAndPinnedPagesCanMoveHome, test:BrowserCoreTests/aFavoriteCanStartASplitView
 
 ## Must-have to switch (after the release gate)
 

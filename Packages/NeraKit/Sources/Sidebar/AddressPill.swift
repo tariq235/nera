@@ -12,7 +12,7 @@ struct AddressPill: View {
     @State private var isSiteInfoPresented = false
 
     private var isWebPage: Bool {
-        guard let scheme = host.state.selectedTab?.url?.scheme?.lowercased() else { return false }
+        guard let scheme = host.addressURL?.scheme?.lowercased() else { return false }
         return scheme == "https" || scheme == "http"
     }
 
@@ -42,7 +42,7 @@ struct AddressPill: View {
     private var addressBar: some View {
         HStack(spacing: 0) {
             if let siteInfo, isWebPage {
-                let insecure = DisplayURL.isInsecure(host.state.selectedTab?.url)
+                let insecure = DisplayURL.isInsecure(host.addressURL)
                 Button {
                     isSiteInfoPresented.toggle()
                 } label: {
@@ -68,11 +68,11 @@ struct AddressPill: View {
             host.showCommandBar(.currentTab)
         } label: {
             HStack(spacing: 6) {
-                if siteInfo == nil, DisplayURL.isInsecure(host.state.selectedTab?.url) {
+                if siteInfo == nil, DisplayURL.isInsecure(host.addressURL) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         .help("Not secure: this page doesn't use HTTPS")
                 }
-                let text = DisplayURL.short(host.state.selectedTab?.url)
+                let text = DisplayURL.short(host.addressURL)
                 if text.isEmpty {
                     Image(systemName: "magnifyingglass").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
                         .accessibilityHidden(true)

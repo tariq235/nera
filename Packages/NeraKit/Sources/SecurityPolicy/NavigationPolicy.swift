@@ -47,6 +47,9 @@ public struct NavigationPolicy: Sendable, Equatable {
         /// The site opens with Nera's other engine (``EngineRoute``): the page is made again there, before any
         /// request is sent. Never shown to the user.
         case otherEngine = "This site opens with Nera's other engine."
+        /// A link from a Favorite or pinned tab to another site (``PeekRoute``): it opens in Peek over the page, and
+        /// the tab stays on its own site. Stopped before any request; never shown to the user.
+        case openInPeek = "This link opens in Peek."
         /// The address must be checked with Safe Browsing first (``SafetyGate``): held before any request, then loaded
         /// or replaced by a warning. Never shown to the user as a blocked navigation.
         case awaitingSafetyCheck = "Checking whether this site is safe."
@@ -64,6 +67,9 @@ public struct NavigationPolicy: Sendable, Equatable {
     /// Which sites this page's engine hands to the other engine (streaming sites, the user's choices). Set per
     /// page by Nera; child pages (popups) never have one, so they keep their opener.
     public var engineRoute: EngineRoute?
+    /// Which link clicks open in Peek instead of in the page (a Favorite's or pinned tab's links to other sites).
+    /// Set per page by Nera; child pages never have one.
+    public var peekRoute: PeekRoute?
     /// Holds main-frame navigations Safe Browsing must check first (set per page by Nera; popups keep it).
     public var safetyGate: SafetyGate?
 
@@ -71,6 +77,7 @@ public struct NavigationPolicy: Sendable, Equatable {
     public var forChildPage: NavigationPolicy {
         var policy = self
         policy.engineRoute = nil
+        policy.peekRoute = nil
         return policy
     }
 
@@ -93,6 +100,8 @@ public struct NavigationPolicy: Sendable, Equatable {
 
         if Self.webSchemes.contains(scheme) {
             if url.user() != nil || url.password() != nil, isMainFrame { return .block(.credentialsInURL) }
+            // A click on a link that leaves a Favorite's or pinned tab's site opens in Peek (Arc's behavior).
+            if isMainFrame, trigger == .linkClick, peekRoute?.wantsPeek(url) == true { return .block(.openInPeek) }
             // Typed URLs (and back/forward) were already given to the right engine by Nera.
             if isMainFrame, trigger != .userTyped, engineRoute?.wantsOtherEngine(url) == true { return .block(.otherEngine) }
             if scheme == "http", httpsOnly, isMainFrame, let host = url.host()?.lowercased(),
@@ -150,6 +159,21 @@ public final class SafetyGate: @unchecked Sendable, Equatable {
 
     /// Same gate object.
     public static func == (a: SafetyGate, b: SafetyGate) -> Bool { a === b }
+}
+
+/// Decides which link clicks in a page open in Peek instead (see ``NavigationPolicy/peekRoute``).
+public final class PeekRoute: @unchecked Sendable, Equatable {
+    private let rule: @Sendable (URL) -> Bool
+
+    /// A route; `rule` answers whether a clicked link opens in Peek. It's called where the engine decides
+    /// navigations (the main thread).
+    public init(_ rule: @escaping @Sendable (URL) -> Bool) { self.rule = rule }
+
+    /// Whether a click on a link to `url` opens in Peek.
+    public func wantsPeek(_ url: URL) -> Bool { rule(url) }
+
+    /// Routes are the same object (a page's policy carries one).
+    public static func == (a: PeekRoute, b: PeekRoute) -> Bool { a === b }
 }
 
 /// Tells a page's navigation policy which main-frame destinations belong in the other engine.

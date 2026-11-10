@@ -59,6 +59,34 @@ struct BrowsingFeaturesTests {
         #expect(m.pages.existingPage(for: child.id) === child, "nothing reloads")
     }
 
+    /// On X (a Favorite or pinned tab), a link to another site opens in Peek and the tab stays on X; links within
+    /// the site, and links in Today tabs, open in place.
+    @Test func linksLeavingAPinnedTabsSiteOpenInPeekAndTheTabStays() throws {
+        let m = model()
+        let (pinned, page) = try pinnedTab(m, "https://x.com/home")
+        page.simulateState { $0.url = URL(string: "https://x.com/home") }
+        let away = try #require(URL(string: "https://t.co/abc"))
+        #expect(m.pages.peekRule?(pinned.id, away) == true)
+        #expect(m.pages.peekRule?(pinned.id, URL(string: "https://x.com/settings")!) == false, "same site")
+        #expect(m.pages.peekRule?(pinned.id, URL(string: "https://mobile.x.com/a")!) == false, "same registrable domain")
+        // The engine stops the click (NavigationPolicy) and reports it: Nera opens Peek.
+        page.simulate(.navigationBlocked(away, .openInPeek))
+        let peek = try #require(m.peek)
+        #expect(peek.openerID == pinned.id)
+        #expect((m.peekPage as? FakePage)?.loads == [away], "the link loads in Peek")
+        #expect(m.state.tab(withID: pinned.id)?.url == URL(string: "https://x.com/home"), "the pinned tab stays on its site")
+        #expect(m.pages.lastBlocked == nil, "not shown as a blocked navigation")
+        // While Peek is open, and for Today tabs, links open in place.
+        #expect(m.pages.peekRule?(pinned.id, URL(string: "https://other.example")!) == false)
+        m.closePeek()
+        m.send(.tab(.open(URL(string: "https://news.example")!, .newTab)))
+        let today = try #require(m.state.selectedTabID)
+        _ = m.pages.page(for: try #require(m.state.selectedTab), profile: try #require(m.state.currentProfile))
+        #expect(m.pages.peekRule?(today, URL(string: "https://elsewhere.example")!) == false)
+        m.send(.library(.setPeekLinks(false)))
+        #expect(m.pages.peekRule?(pinned.id, away) == false, "the setting turns it off")
+    }
+
     @Test func peekClosesWithoutATraceAndRespectsTheSetting() throws {
         let m = model()
         let (_, page) = try pinnedTab(m, "https://mail.example")

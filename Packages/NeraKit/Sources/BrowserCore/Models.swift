@@ -287,6 +287,8 @@ public struct Tab: Codable, Hashable, Identifiable, Sendable {
     public var isMuted: Bool
     /// A name the user gave the tab (Rename…); shown instead of the page title, which keeps updating underneath.
     public var customTitle: String?
+    /// An emoji the user chose as the tab's icon (Change Icon…), shown instead of the site's icon.
+    public var customIcon: String?
 
     /// Creates a tab.
     public init(id: UUID, url: URL?, title: String = "", homeURL: URL? = nil, lastActiveAt: Date, isMuted: Bool = false) {

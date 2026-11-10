@@ -68,6 +68,13 @@ public enum TabAction: Equatable, Sendable {
     case duplicate(UUID)
     /// Move a tab to the top of another Space's Today (from its Space or Favorites). A selected tab is followed there.
     case moveToSpace(UUID, spaceID: UUID)
+    /// Give a tab an emoji as its icon (nil: the site's icon again).
+    case setIcon(UUID, emoji: String?)
+    /// A pinned tab or Favorite returns to the page it shows now from here on (Edit Pinned Page).
+    case makeCurrentPageHome(UUID)
+    /// Put a Today tab in Split View beside a copy of another tab's page (Peek's Split View: the Favorite or pinned
+    /// tab that opened it stays where it is). The Today tab stays selected.
+    case splitBesideCopy(UUID, of: UUID)
 }
 
 /// Where a dragged sidebar item lands.

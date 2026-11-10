@@ -39,6 +39,13 @@ public enum Theme {
         #endif
     }
 
+    /// The Space's deep color (its own color when imported, else a deep tone of its hue): icons on white controls.
+    public static func deepTone(for theme: SpaceTheme?) -> Color {
+        let t = theme ?? .default
+        let c = t.exact?.base ?? baseColor(for: t)
+        return Color(.sRGB, red: c.red, green: c.green, blue: c.blue)
+    }
+
     /// A deep tone of a Space's hue: what Arc calls the Space's color, for Nera's own themes.
     static func baseColor(for theme: SpaceTheme) -> RGBA {
         #if os(macOS)

@@ -8,16 +8,7 @@ extension Reducer {
         switch action {
         case .open(let url, let disposition): open(&state, url, disposition, env)
         case .moveNode(let id, let destination): moveNode(&state, id, to: destination, env)
-        case .splitWith(let id, let other): splitWith(&state, id, other: other)
-        case .removeFromSplit(let id): editSplits(&state) { $0.extractFromSplit(id) }
-        case .unsplit(let id): editSplits(&state) { $0.updateSplit(containing: id) { _ in false } }
-        case .setSplitAxis(let id, let axis):
-            editSplits(&state) {
-                $0.updateSplit(containing: id) { split in
-                    split.axis = axis
-                    return true
-                }
-            }
+        case .splitWith, .removeFromSplit, .unsplit, .setSplitAxis, .splitBesideCopy: reduceSplit(&state, action, env)
         case .openChild(let id, let url, let openerID, let select):
             openChild(&state, id: id, url: url, openerID: openerID, select: select, env)
         case .select(let id): select(&state, id, env)
@@ -33,7 +24,58 @@ extension Reducer {
         case .rename(let id, let title): rename(&state, id, title: title)
         case .duplicate(let id): duplicate(&state, id, env)
         case .moveToSpace(let id, let spaceID): moveToSpace(&state, id, spaceID: spaceID, env)
+        case .setIcon(let id, let emoji): setIcon(&state, id, emoji: emoji)
+        case .makeCurrentPageHome(let id): makeCurrentPageHome(&state, id)
         }
+    }
+
+    /// Split View actions.
+    private static func reduceSplit(_ state: inout BrowserState, _ action: TabAction, _ env: ReducerEnvironment) -> [Effect] {
+        switch action {
+        case .splitWith(let id, let other): splitWith(&state, id, other: other)
+        case .removeFromSplit(let id): editSplits(&state) { $0.extractFromSplit(id) }
+        case .unsplit(let id): editSplits(&state) { $0.updateSplit(containing: id) { _ in false } }
+        case .setSplitAxis(let id, let axis):
+            editSplits(&state) {
+                $0.updateSplit(containing: id) { split in
+                    split.axis = axis
+                    return true
+                }
+            }
+        case .splitBesideCopy(let id, let source): splitBesideCopy(&state, id, of: source, env)
+        default: []
+        }
+    }
+
+    private static func setIcon(_ state: inout BrowserState, _ id: UUID, emoji: String?) -> [Effect] {
+        // One emoji (its first character), or none.
+        let icon = emoji?.trimmingCharacters(in: .whitespacesAndNewlines).first.map(String.init)
+        mutateTab(&state, id) { $0.customIcon = icon }
+        return []
+    }
+
+    private static func splitBesideCopy(_ state: inout BrowserState, _ id: UUID, of source: UUID, _ env: ReducerEnvironment)
+        -> [Effect]
+    {
+        guard case .space(let spaceID, .today)? = state.locate(id)?.location,
+            let si = state.spaces.firstIndex(where: { $0.id == spaceID }),
+            let index = state.spaces[si].today.firstIndex(where: { $0.id == id }), case .tab(let tab) = state.spaces[si].today[index].kind,
+            let original = state.tab(withID: source), let url = original.url
+        else { return [] }
+        let copy = Tab(id: env.uuid(), url: url, title: original.title, lastActiveAt: env.now())
+        state.spaces[si].today[index] = Node(id: env.uuid(), kind: .split(Split(tabs: [copy, tab])))
+        state.selectedSpaceID = spaceID
+        state.selectedTabID = id
+        return [.load(tabID: copy.id, url: url)]
+    }
+
+    private static func makeCurrentPageHome(_ state: inout BrowserState, _ id: UUID) -> [Effect] {
+        guard let location = state.locate(id)?.location else { return [] }
+        switch location {
+        case .favorite, .space(_, .pinned): mutateTab(&state, id) { tab in if let url = tab.url { tab.homeURL = url } }
+        default: break
+        }
+        return []
     }
 
     private static func rename(_ state: inout BrowserState, _ id: UUID, title: String) -> [Effect] {
@@ -172,6 +214,16 @@ extension Reducer {
         {
             state.selectedTabID = tab.id
             return [.load(tabID: tab.id, url: url)]
+        }
+        // A Favorite isn't in a Space: its page joins a split at the top of Today, beside the new one; the Favorite
+        // stays where it is.
+        if disposition == .splitWithCurrent, let current = state.selectedTabID, case .favorite? = state.locate(current)?.location,
+            let favorite = state.tab(withID: current), let page = favorite.url
+        {
+            let copy = Tab(id: env.uuid(), url: page, title: favorite.title, lastActiveAt: env.now())
+            state.spaces[si].today.insert(Node(id: env.uuid(), kind: .split(Split(tabs: [copy, tab]))), at: 0)
+            state.selectedTabID = tab.id
+            return [.load(tabID: copy.id, url: page), .load(tabID: tab.id, url: url)]
         }
         state.spaces[si].today.insert(.tab(tab), at: 0)
         state.selectedTabID = tab.id

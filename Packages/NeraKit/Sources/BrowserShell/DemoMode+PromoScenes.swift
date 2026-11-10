@@ -30,6 +30,15 @@
                 try? await Task.sleep(for: .seconds(8))
                 if let flow { DemoMode.showDemo(.spaces, in: flow) }
                 try? await Task.sleep(for: .seconds(1.5))
+            case "peeklink":  // a pinned tab on a site with links elsewhere (--webkit: in WebKit, as X is)
+                if CommandLine.arguments.contains("--webkit") { model.setEngine(.webKit, forSite: "wikipedia.org") }
+                model.send(.tab(.open(URL(string: "https://en.wikipedia.org/wiki/Aurora")!, .newTab)))
+                if let id = model.state.selectedTabID {
+                    // --favorite: as a Favorite (like X in the sidebar's top grid), else a pinned tab.
+                    model.send(.tab(CommandLine.arguments.contains("--favorite") ? .addToFavorites(id) : .togglePin(id)))
+                    model.send(.tab(.select(id)))
+                }
+                try? await Task.sleep(for: .seconds(6))
             case "hero":
                 if let repoTab = tab(model, containing: "tariq235/nera", exact: true) { model.send(.tab(.select(repoTab))) }
                 try? await Task.sleep(for: .seconds(2))
@@ -44,6 +53,7 @@
             case "work": await workScene(model)
             case "spaces": await spacesScene(model)
             case "theme": await themeScene(model)
+            case "peeklink": await peekLinkScene(model)
             case "command":  // the command bar completing an address, held still (for comparing with Arc)
                 shortcut(["⌘", "T"]) { model.showCommandBar(.newTab) }
                 await wait(0.5)
@@ -120,6 +130,39 @@
             log("little")
             if let url = URL(string: "\(repo)/releases/tag/v0.1.3") { model.openLittleWindow(url) }
             await wait(2.6)
+        }
+
+        /// Clicks (a real mouse click in the window) a link to another site in a pinned tab: it must open in Peek and
+        /// the tab must stay on its page. Prints what happened.
+        private static func peekLinkScene(_ model: AppModel) async {
+            guard let id = model.state.selectedTabID, let page = model.selectedPage, let window = page.view.window else { return }
+            let before = page.state.url
+            let script = """
+                (() => { const a = [...document.querySelectorAll('#bodyContent a[href^="https://"]')]
+                  .find(a => !/(^|\\.)(wikipedia|wikimedia|wikidata|mediawiki)\\.org$/.test(new URL(a.href).hostname));
+                  if (!a) return '';
+                  a.scrollIntoView({block: 'center'}); const r = a.getBoundingClientRect();
+                  return [r.left + r.width / 2, r.top + r.height / 2, a.href].join(' '); })()
+                """
+            guard let found = await page.evaluate(script), case let parts = found.split(separator: " "), parts.count == 3,
+                let x = Double(parts[0]), let y = Double(parts[1])
+            else { return FileHandle.standardOutput.write(Data("peeklink: no outside link found\n".utf8)) }  // Debug tool output
+            await wait(0.8)
+            let inWindow = page.view.convert(NSPoint(x: x, y: page.view.isFlipped ? y : page.view.bounds.height - y), to: nil)
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                if let event = NSEvent.mouseEvent(
+                    with: type, location: inWindow, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                    windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)
+                {
+                    window.sendEvent(event)
+                }
+            }
+            await wait(3)
+            let after = model.pages.existingPage(for: id)?.state.url
+            let report =
+                "peeklink: \(String(describing: Swift.type(of: page))) link \(parts[2]) | peek=\(model.peek != nil) peekURL=\(model.peekPage?.state.url?.absoluteString ?? "-") "
+                + "| pinned stayed=\(after == before) (\(after?.absoluteString ?? "-"))\n"
+            FileHandle.standardOutput.write(Data(report.utf8))  // Debug tool output
         }
 
         /// Swipes across the Spaces, each with its own colors, and back.
