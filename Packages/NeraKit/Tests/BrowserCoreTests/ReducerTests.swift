@@ -60,6 +60,58 @@ struct ReducerTests {
         #expect(effects == [.discardPage(tabID: a)])
     }
 
+    /// On GitHub, ⌘T a site, ⌘W: back on GitHub, not on the pinned tab above the new one (Arc does the same).
+    @Test func closingATabGoesBackToTheTabUsedBeforeIt() {
+        var h = Harness()
+        let pinned = h.open("https://mail.example")
+        h.send(.tab(.togglePin(pinned)))
+        h.env.now += 60
+        let github = h.open("https://github.com")
+        h.env.now += 60
+        let other = h.open("https://news.example")  // Today: other, github
+        h.env.now += 60
+        h.send(.tab(.select(github)))
+        h.env.now += 60
+        let facebook = h.open("https://facebook.com")  // Today: facebook, other, github; pinned above
+        h.env.now += 5
+        h.send(.tab(.close(facebook)))
+        #expect(h.state.selectedTabID == github)
+        _ = other
+    }
+
+    /// Change Icon…, and Edit Pinned Page › Use the Current Page.
+    @Test func tabsTakeAnEmojiIconAndPinnedPagesCanMoveHome() throws {
+        var h = Harness()
+        let a = h.open("https://a.example/home")
+        h.send(.tab(.setIcon(a, emoji: "  🚀✨ ")))
+        #expect(h.state.tab(withID: a)?.customIcon == "🚀", "one emoji")
+        h.send(.tab(.setIcon(a, emoji: nil)))
+        #expect(h.state.tab(withID: a)?.customIcon == nil)
+        h.send(.tab(.makeCurrentPageHome(a)))
+        #expect(h.state.tab(withID: a)?.homeURL == nil, "Today tabs have no pinned page")
+        h.send(.tab(.togglePin(a)))
+        h.send(.tab(.didUpdate(a, url: URL(string: "https://a.example/inbox"), title: nil)))
+        h.send(.tab(.makeCurrentPageHome(a)))
+        #expect(h.state.tab(withID: a)?.homeURL == URL(string: "https://a.example/inbox"))
+    }
+
+    /// Add Split View on a Favorite: its page and the new one side by side at the top of Today; the Favorite stays.
+    @Test func aFavoriteCanStartASplitView() throws {
+        var h = Harness()
+        let fav = h.open("https://mail.example")
+        h.send(.tab(.addToFavorites(fav)))
+        h.send(.tab(.select(fav)))
+        let effects = h.send(.tab(.open(URL(string: "https://docs.example")!, .splitWithCurrent)))
+        #expect(h.state.currentProfile?.favorites.map(\.id) == [fav])
+        guard case .split(let split)? = h.space.today.first?.kind else {
+            Issue.record("no split")
+            return
+        }
+        #expect(split.tabs.map(\.url) == [URL(string: "https://mail.example"), URL(string: "https://docs.example")])
+        #expect(h.state.selectedTabID == split.tabs[1].id)
+        #expect(effects.count == 2)
+    }
+
     @Test func closingPinnedTabKeepsItButUnloads() {
         var h = Harness()
         let a = h.open("https://a.example")

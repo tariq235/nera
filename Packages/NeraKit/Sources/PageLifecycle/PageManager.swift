@@ -166,6 +166,10 @@ public final class PageManager {
 
     /// Ends a hold: the page's next navigation replaces it.
     public func releaseHold(_ pageID: UUID) { heldNavigations[pageID] = nil }
+    /// Whether a click on a link to a URL in a tab's page opens in Peek instead (set by the shell).
+    @ObservationIgnored public var peekRule: ((_ tabID: UUID, _ url: URL) -> Bool)?
+    /// A link click held for Peek (``peekRule``): the shell opens it there.
+    @ObservationIgnored public var openInPeek: ((_ openerID: UUID, _ url: URL) -> Void)?
     /// Offered every child page a tab opens in a tab (not popups). Returning `true` means the app shows the
     /// page itself (Peek); the page stays live here but no tab is created for it.
     @ObservationIgnored public var childPageInterceptor: ((_ openerID: UUID, _ childID: UUID, _ url: URL?) -> Bool)?
@@ -229,6 +233,10 @@ public final class PageManager {
         let engine = registry.engine(for: profile, url: tab.url)  // a site may need the other engine (SiteEngines)
         var pagePolicy = policy
         pagePolicy.engineRoute = route(for: tab.id)
+        let tabID = tab.id
+        pagePolicy.peekRoute = PeekRoute { [weak self] url in
+            MainActor.assumeIsolated { self?.peekRule?(tabID, url) ?? false }  // engines decide on the main thread
+        }
         if safetyGateEngines.contains(engine.descriptor.id) { pagePolicy.safetyGate = safetyGate }
         let configuration = PageConfiguration(
             id: tab.id, storage: storage ?? defaultStorage ?? .persistent(profile.id), policy: pagePolicy)
@@ -458,6 +466,7 @@ extension PageManager: WebPageDelegate {
             documentChanged?(page)
         case .navigationBlocked(let url, let reason):
             if reason == .otherEngine { return move(page.id, to: url) }
+            if reason == .openInPeek { return openInPeek?(page.id, url) ?? () }
             if reason == .awaitingSafetyCheck {
                 heldNavigations[page.id] = url
                 return safetyHold?(page, url) ?? ()

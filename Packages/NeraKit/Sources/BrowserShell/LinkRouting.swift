@@ -35,6 +35,29 @@ extension AppModel {
         return true
     }
 
+    /// Whether a clicked link opens in Peek instead of in the tab, like Arc: a Favorite or pinned tab keeps its own
+    /// site, so a link that leaves it (another registrable domain) opens over the page. Links within the site, and
+    /// links in other tabs, open as usual.
+    func linkOpensInPeek(from tabID: UUID, to url: URL) -> Bool {
+        guard state.settings.peekLinks, !isPrivate, peek == nil, let location = state.locate(tabID)?.location else { return false }
+        switch location {
+        case .favorite, .space(_, .pinned): break
+        default: return false
+        }
+        let current = pages.existingPage(for: tabID)?.state.url ?? state.tab(withID: tabID)?.url
+        guard let current, let from = SiteEngines.cookieSite(of: current), let to = SiteEngines.cookieSite(of: url) else { return false }
+        return from != to
+    }
+
+    /// Opens a link in Peek over the tab that clicked it (the link's page is made for Peek; the tab stays put).
+    func openInPeek(_ url: URL, from opener: UUID) {
+        guard peek == nil, let profile = state.currentProfile else { return }
+        let tab = BrowserCore.Tab(id: UUID(), url: url, lastActiveAt: Date())
+        pages.keptPageIDs.insert(tab.id)
+        _ = pages.page(for: tab, profile: profile, makeActive: false)
+        peek = PeekPage(id: tab.id, openerID: opener)
+    }
+
     /// The page showing in Peek.
     public var peekPage: (any WebPage)? { peek.flatMap { pages.existingPage(for: $0.id) } }
 
@@ -52,6 +75,14 @@ extension AppModel {
         peek = nil
         pages.keptPageIDs.remove(current.id)
         adoptAsTab(page, id: current.id, openerID: current.openerID)
+    }
+
+    /// Peek's Split View: the page becomes a tab beside a copy of the page that opened it (the Favorite or pinned
+    /// tab itself stays where it is). Nothing in Peek reloads.
+    public func openPeekInSplitView() {
+        guard let current = peek else { return }
+        openPeekAsTab()
+        send(.tab(.splitBesideCopy(current.id, of: current.openerID)))
     }
 
     /// Puts a live page that isn't in the tab list (Peek, a Little Window) into the tab list, selected.

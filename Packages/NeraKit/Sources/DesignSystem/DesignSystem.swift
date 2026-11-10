@@ -19,6 +19,57 @@ public enum Theme {
             hue: t.hue, saturation: t.saturation < 0.05 ? 0 : max(0.55, t.saturation * 1.4), brightness: t.saturation < 0.05 ? 0.35 : 0.72)
     }
 
+    /// The selection color: the highlighted suggestion in the command bar, the selected text it completes. A soft
+    /// tone of the Space's color, as the Space's own palette has it when it came from Arc, otherwise derived the
+    /// same way (the Space's color half mixed with white in light appearance, a fifth in dark).
+    public static func focus(for theme: SpaceTheme?) -> Color {
+        let colors = (theme ?? .default).exact ?? ExactColors(base: baseColor(for: theme ?? .default))
+        #if os(macOS)
+            return Color(
+                nsColor: NSColor(name: nil) { appearance in
+                    let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                    return nsColor(dark ? colors.focusDark : colors.focusLight)
+                })
+        #else
+            return Color(
+                uiColor: UIColor { traits in
+                    let c = traits.userInterfaceStyle == .dark ? colors.focusDark : colors.focusLight
+                    return UIColor(red: c.red, green: c.green, blue: c.blue, alpha: c.alpha)
+                })
+        #endif
+    }
+
+    /// The Space's deep color (its own color when imported, else a deep tone of its hue): icons on white controls.
+    public static func deepTone(for theme: SpaceTheme?) -> Color {
+        let t = theme ?? .default
+        let c = t.exact?.base ?? baseColor(for: t)
+        return Color(.sRGB, red: c.red, green: c.green, blue: c.blue)
+    }
+
+    /// A deep tone of a Space's hue: what Arc calls the Space's color, for Nera's own themes.
+    static func baseColor(for theme: SpaceTheme) -> RGBA {
+        #if os(macOS)
+            let c = NSColor(
+                hue: theme.hue, saturation: theme.saturation < 0.05 ? 0 : min(1, theme.saturation * 1.5),
+                brightness: theme.saturation < 0.05 ? 0.2 : 0.42, alpha: 1)
+            return RGBA(red: c.redComponent, green: c.greenComponent, blue: c.blueComponent)
+        #else
+            let c = UIColor(
+                hue: theme.hue, saturation: theme.saturation < 0.05 ? 0 : min(1, theme.saturation * 1.5),
+                brightness: theme.saturation < 0.05 ? 0.2 : 0.42, alpha: 1)
+            var r: CGFloat = 0
+            var g: CGFloat = 0
+            var b: CGFloat = 0
+            var a: CGFloat = 0
+            c.getRed(&r, green: &g, blue: &b, alpha: &a)
+            return RGBA(red: r, green: g, blue: b)
+        #endif
+    }
+
+    #if os(macOS)
+        static func nsColor(_ c: RGBA) -> NSColor { NSColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: c.alpha) }
+    #endif
+
     /// A stable color per host, so monogram icons are recognizable.
     public static func monogramColor(for url: URL?) -> Color {
         let host = url?.host() ?? ""
@@ -114,6 +165,7 @@ public struct SpaceBackground: View {
 
     /// The gradient's colors in `scheme`.
     public static func colors(_ theme: SpaceTheme, dark: Bool) -> [Color] {
+        if let exact = theme.exact { return exactColors(exact, dark: dark) }
         let h = theme.hue
         let s = theme.saturation
         // The way round the color wheel from the first hue to the second.
@@ -127,13 +179,28 @@ public struct SpaceBackground: View {
             : [tone(0, 0.85, 0.96), tone(0.5, 1.05, 0.90), tone(1, 1.15, 0.84)]
     }
 
+    /// A Space imported with its exact color (Arc): the color tints a light or dark window by its intensity, as in
+    /// Arc (measured against Arc's own windows), with the faintest fall of light across it.
+    static func exactColors(_ exact: ExactColors, dark: Bool) -> [Color] {
+        let weight = min(max(exact.intensity * 0.75, 0), 1)
+        let under = dark ? RGBA(red: 0.08, green: 0.08, blue: 0.08) : RGBA(red: 0.88, green: 0.88, blue: 0.88)
+        let base = dark ? exact.base.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.35) : exact.base
+        let tone = under.mixed(with: base, weight)
+        func color(_ c: RGBA) -> Color { Color(.sRGB, red: c.red, green: c.green, blue: c.blue) }
+        return [
+            color(tone.mixed(with: .white, dark ? 0.02 : 0.05)), color(tone),
+            color(tone.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.04)),
+        ]
+    }
+
     /// The backdrop.
     public var body: some View {
         let dark = scheme == .dark
         ZStack {
             LinearGradient(colors: Self.colors(theme, dark: dark), startPoint: .topLeading, endPoint: .bottomTrailing)
             RadialGradient(
-                colors: [.white.opacity(dark ? 0.06 : 0.30), .clear], center: .topLeading, startRadius: 0, endRadius: 520)
+                colors: [.white.opacity(theme.exact != nil ? 0 : dark ? 0.06 : 0.30), .clear], center: .topLeading, startRadius: 0,
+                endRadius: 520)
             if let grain = theme.grain, grain > 0.01 { Grain(opacity: grain * (dark ? 0.16 : 0.22)) }
         }
     }

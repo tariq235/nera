@@ -127,6 +127,7 @@ public enum ArcImporter {
                     id: id(spaceID),
                     title: (space["title"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "Imported Space",
                     icon: icon,
+                    theme: Self.theme(fromArc: (space["customInfo"] as? [String: Any])?["windowTheme"] as? [String: Any]) ?? .default,
                     profileID: profileID,
                     pinned: pinnedID.map { children(of: $0).compactMap { node($0, pinned: true) } } ?? [],
                     today: unpinnedID.map { children(of: $0).compactMap { node($0, pinned: false) } } ?? []
@@ -244,5 +245,69 @@ public enum ArcImporter {
             i += 2
         }
         return result
+    }
+}
+
+extension ArcImporter {
+    /// Every Space's look in an Arc sidebar file, by Space ID (Spaces imported from Arc keep Arc's IDs), for "Use
+    /// Colors from Arc" on Spaces imported before Nera brought colors over.
+    public static func spaceThemes(data: Data) -> [UUID: SpaceTheme] {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let containers = (root["sidebar"] as? [String: Any])?["containers"] as? [Any],
+            let main = containers.compactMap({ $0 as? [String: Any] }).first(where: { $0["spaces"] != nil })
+        else { return [:] }
+        var themes: [UUID: SpaceTheme] = [:]
+        for (rawID, space) in keyedPairs(main["spaces"]) {
+            guard let id = UUID(uuidString: rawID),
+                let theme = theme(fromArc: (space["customInfo"] as? [String: Any])?["windowTheme"] as? [String: Any])
+            else { continue }
+            themes[id] = theme
+        }
+        return themes
+    }
+
+    /// A Space's look from Arc's `windowTheme`: its color, how strongly it tints the window, and the selection colors
+    /// Arc derived from it, so the Space looks the same in Nera. Nil when there's no color to read.
+    static func theme(fromArc windowTheme: [String: Any]?) -> SpaceTheme? {
+        guard let windowTheme else { return nil }
+        func rgba(_ value: Any?) -> RGBA? {
+            guard let c = value as? [String: Any], let r = c["red"] as? Double, let g = c["green"] as? Double, let b = c["blue"] as? Double
+            else { return nil }
+            func unit(_ v: Double) -> Double { min(max(v, 0), 1) }  // Arc's colors are extended sRGB
+            return RGBA(red: unit(r), green: unit(g), blue: unit(b), alpha: unit(c["alpha"] as? Double ?? 1))
+        }
+        /// The first value under `key` anywhere inside `value` (Arc nests its enums as `{"case": {"_0": …}}`).
+        func first(_ key: String, in value: Any?) -> Any? {
+            if let dict = value as? [String: Any] {
+                if let found = dict[key] { return found }
+                for child in dict.values { if let found = first(key, in: child) { return found } }
+            } else if let array = value as? [Any] {
+                for child in array { if let found = first(key, in: child) { return found } }
+            }
+            return nil
+        }
+        /// The first color anywhere inside `value` (a dictionary with red, green and blue).
+        func firstColor(in value: Any?) -> RGBA? {
+            if let found = rgba(value) { return found }
+            if let dict = value as? [String: Any] {
+                for key in dict.keys.sorted() { if let found = firstColor(in: dict[key]) { return found } }
+            } else if let array = value as? [Any] {
+                for child in array { if let found = firstColor(in: child) { return found } }
+            }
+            return nil
+        }
+        let background = windowTheme["background"]
+        guard let base = firstColor(in: background) else { return nil }
+        let intensity = (first("intensityFactor", in: background) as? Double).map { min(max($0, 0), 1) } ?? 0.8
+        let noise = (first("noiseFactor", in: background) as? Double).map { min(max($0, 0), 1) } ?? 0
+        let semantic = (windowTheme["semanticColorPalette"] as? [String: Any])?["appearanceBased"] as? [String: Any]
+        let light = (semantic?["light"] as? [String: Any])?["focus"]
+        let dark = (semantic?["dark"] as? [String: Any])?["focus"]
+        var colors = ExactColors(base: base, intensity: intensity)
+        if let focus = rgba(light) { colors.focusLight = focus }
+        if let focus = rgba(dark) { colors.focusDark = focus }
+        let hsb = base.hsb
+        return SpaceTheme(
+            hue: hsb.hue, saturation: hsb.saturation, appearance: .system, grain: noise > 0.01 ? noise : nil, exact: colors)
     }
 }

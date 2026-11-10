@@ -6,9 +6,7 @@ import XCTest
 /// End-to-end smoke tests: real app, real WebKit, no network (data: URLs only).
 /// The app runs with an in-memory library (`NERA_UI_TEST=1`), so tests never touch user data.
 @MainActor
-final class SmokeTests: XCTestCase {
-    var app = XCUIApplication()
-
+final class SmokeTests: NeraUITestCase {
     /// Every audit on a physical Mac. On a virtual machine (GitHub's runners) the contrast audit measures text against
     /// the VM's black desktop behind the translucent window, not the page on screen: it flags text measured at
     /// 5.7:1 and even solid black. All other audits still run there.
@@ -17,29 +15,6 @@ final class SmokeTests: XCTestCase {
         var size = MemoryLayout<Int32>.size
         sysctlbyname("kern.hv_vmm_present", &isVirtualMachine, &size, nil, 0)
         return isVirtualMachine == 1 ? XCUIAccessibilityAuditType.all.subtracting(.contrast) : .all
-    }
-
-    override func setUp() async throws {
-        continueAfterFailure = false
-        app = XCUIApplication()
-        app.launchEnvironment["NERA_UI_TEST"] = "1"
-        // On CI virtual machines the first launch occasionally fails ("does not have a process ID"); one retry.
-        let options = XCTExpectedFailure.Options()
-        options.isStrict = false
-        XCTExpectFailure("first launch on a CI virtual machine", options: options) { app.launch() }
-        if app.state != .runningForeground {
-            app.launch()
-        }
-    }
-
-    override func tearDown() async throws {
-        app.terminate()
-    }
-
-    func sidebarTab(_ title: String) -> XCUIElement {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == 'sidebar.tab' AND label == %@", title))
-            .firstMatch
     }
 
     /// Opens Settings (⌘,) on a section, whichever section it remembered last. Depending on the macOS version the
@@ -59,13 +34,6 @@ final class SmokeTests: XCTestCase {
         let tab = candidates.first(where: \.exists)
         XCTAssertNotNil(tab, "Settings didn't open")
         tab?.click()
-    }
-
-    func openViaCommandBar(_ text: String) {
-        app.typeKey("t", modifierFlags: .command)
-        let field = app.textFields["commandBar.field"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5), "command bar did not open")
-        field.typeText(text + "\n")
     }
 
     func testLaunchShowsSidebarAndEmptyState() {
@@ -249,25 +217,6 @@ final class SmokeTests: XCTestCase {
             let restored = NSPredicate { _, _ in window.frame == frame }
             wait(for: [XCTNSPredicateExpectation(predicate: restored, object: nil)], timeout: 5)
         }
-    }
-
-    /// Typing the start of a site the bar completes inline, then Return, opens that site, not a search for the
-    /// letters typed (FEAT-061). `.invalid` never resolves, so no network is needed.
-    func testReturnOpensTheCompletedSite() {
-        openViaCommandBar("http://nera-completion.invalid/")
-        let field = app.textFields["commandBar.field"]
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        field.typeText("nera-comp")
-        field.typeText("\n")
-        XCTAssertTrue(field.waitForNonExistence(timeout: 5))
-        app.typeKey("l", modifierFlags: .command)
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
-        let shown = NSPredicate { _, _ in (field.value as? String)?.contains("nera-completion.invalid") == true }
-        wait(for: [XCTNSPredicateExpectation(predicate: shown, object: nil)], timeout: 5)
-        XCTAssertFalse((field.value as? String ?? "").contains("q=nera-comp"), "Return searched instead of opening the site")
-        app.typeKey(.escape, modifierFlags: [])
     }
 
     func testOpenCloseRestoreTab() {

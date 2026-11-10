@@ -12,6 +12,20 @@ struct NavigationPolicyTests {
 
     func url(_ s: String) -> URL { URL(string: s)! }
 
+    /// Only a clicked main-frame link goes to Peek: redirects, scripts, typed addresses and frames load as usual.
+    @Test func peekRouteTakesOnlyClickedLinks() {
+        var policy = NavigationPolicy()
+        policy.peekRoute = PeekRoute { $0.host() == "away.example" }
+        let away = URL(string: "https://away.example/")!
+        #expect(policy.decide(away, trigger: .linkClick) == .block(.openInPeek))
+        #expect(policy.decide(away, trigger: .redirect) == .allow)
+        #expect(policy.decide(away, trigger: .script) == .allow)
+        #expect(policy.decide(away, trigger: .userTyped) == .allow)
+        #expect(policy.decide(away, trigger: .linkClick, isMainFrame: false) == .allow)
+        #expect(policy.decide(URL(string: "https://home.example/")!, trigger: .linkClick) == .allow)
+        #expect(policy.forChildPage.peekRoute == nil, "popups never route to Peek")
+    }
+
     @Test func httpsIsAllowed() {
         #expect(policy.decide(url("https://example.com"), trigger: .linkClick) == .allow)
     }

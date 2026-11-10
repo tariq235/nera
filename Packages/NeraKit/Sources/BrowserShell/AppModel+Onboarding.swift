@@ -59,6 +59,23 @@ extension AppModel {
     }
 
     #if os(macOS)
+        /// The Space's colors in Arc's data on this Mac (Spaces imported from Arc keep Arc's IDs). Arc's file is read
+        /// again only when it changes.
+        public func arcTheme(for spaceID: UUID) -> SpaceTheme? {
+            let url = ArcImporter.defaultSidebarURL  // naming: import-reference
+            guard !isPrivate, let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            else { return nil }
+            if ArcColors.cache?.modified != modified {
+                ArcColors.cache = (modified, (try? Data(contentsOf: url)).map(ArcImporter.spaceThemes(data:)) ?? [:])
+            }
+            return ArcColors.cache?.themes[spaceID]
+        }
+
+        /// Arc's Space colors, read once per change of Arc's file.
+        @MainActor private enum ArcColors {
+            static var cache: (modified: Date, themes: [UUID: SpaceTheme])?
+        }
+
         /// Arc's Spaces, Favorites and archived tabs on this Mac, for the welcome screen to preview. Nothing is
         /// changed until ``importArc(_:spaces:archive:history:)``.
         public func previewArc() -> (library: ArcImporter.Result, archive: [ArchivedTab])? {

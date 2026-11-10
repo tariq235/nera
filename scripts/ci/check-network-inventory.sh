@@ -7,9 +7,10 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 INVENTORY="docs/security/security-model.md"
-# SiteCheck.swift and DemoMode.swift are Debug-only tools that *visit* sites like a user would; not requests of Nera's own.
+# SiteCheck.swift, DemoMode.swift and the promo scenes (DemoMode+Promo*.swift) are Debug-only tools that *visit* sites like
+# a user would; not requests of Nera's own.
 # The MPL-2.0 license header names the license's URL; it's a comment, never contacted.
-hosts=$(grep -rhE --include='*.swift' --exclude='SiteCheck.swift' --exclude='DemoMode.swift' 'https?://' Packages/NeraKit/Sources Apps \
+hosts=$(grep -rhE --include='*.swift' --exclude='SiteCheck.swift' --exclude='DemoMode.swift' --exclude='DemoMode+Promo*.swift' 'https?://' Packages/NeraKit/Sources Apps \
   | grep -v 'https://mozilla.org/MPL/2.0/' | grep -oE 'https?://[a-zA-Z0-9.-]+\.[a-z]{2,}' \
   | sed -E 's#https?://##' | sort -u \
   | grep -vE '(^|\.)example\.(com|org|net)$|\.test$' || true)  # RFC 2606 names never resolve publicly

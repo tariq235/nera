@@ -60,9 +60,25 @@ import SwiftUI
         override func willRemoveSubview(_ subview: NSView) {
             super.willRemoveSubview(subview)
             // Another window took the page: say where it went. Only while this view is on screen: a view being
-            // freed also removes its subviews, and must not be referenced then.
+            // freed also removes its subviews, and must not be referenced then. It never takes the page back
+            // itself: when SwiftUI rebuilds the page area, the new container takes the page from the old one, and the
+            // old one pulling it back just before it's thrown away would leave the page in no window.
             guard subview === page, window != nil else { return }
-            DispatchQueue.main.async { [weak self] in self?.showPageIfFree() }
+            DispatchQueue.main.async { [weak self] in self?.noteShownElsewhere() }
+        }
+
+        /// Shows "Showing in another window" when another browser window holds the page.
+        private func noteShownElsewhere() {
+            guard let page, let window, page.superview is PageContainerView, let other = page.window, other !== window else { return }
+            if elsewhere.superview == nil {
+                elsewhere.textColor = .secondaryLabelColor
+                elsewhere.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(elsewhere)
+                NSLayoutConstraint.activate([
+                    elsewhere.centerXAnchor.constraint(equalTo: centerXAnchor),
+                    elsewhere.centerYAnchor.constraint(equalTo: centerYAnchor),
+                ])
+            }
         }
 
         /// Shows the page here unless another window that's in use shows it; `force`: this window is now in use.
@@ -76,18 +92,7 @@ import SwiftUI
             // the page back in for it, so it must stay until then.
             if subviews.contains(where: { $0 !== elsewhere }) { return }
             let shownElsewhere = page.window != nil && page.window !== window
-            if shownElsewhere && !force && page.window?.isKeyWindow == true {
-                if elsewhere.superview == nil {
-                    elsewhere.textColor = .secondaryLabelColor
-                    elsewhere.translatesAutoresizingMaskIntoConstraints = false
-                    addSubview(elsewhere)
-                    NSLayoutConstraint.activate([
-                        elsewhere.centerXAnchor.constraint(equalTo: centerXAnchor),
-                        elsewhere.centerYAnchor.constraint(equalTo: centerYAnchor),
-                    ])
-                }
-                return
-            }
+            if shownElsewhere && !force && page.window?.isKeyWindow == true { return noteShownElsewhere() }
             elsewhere.removeFromSuperview()
             attach(page, to: self)
         }

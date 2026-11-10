@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+    # labeled: adding 'size-increase-approved' starts a fresh run that sees it (a re-run replays the old event).
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
 

@@ -124,6 +124,9 @@ public struct SpaceTheme: Codable, Hashable, Sendable {
     public var secondaryHue: Double?
     /// Film-grain strength on the backdrop, 0...1 (nil: none).
     public var grain: Double?
+    /// The exact colors the Space had in the browser it was imported from (Arc), so it looks the same here. Edited
+    /// themes drop them and use `hue` and `saturation`, which are set to match.
+    public var exact: ExactColors?
 
     /// Appearance preference.
     public enum Appearance: String, Codable, Sendable {
@@ -171,7 +174,7 @@ public struct SpaceTheme: Codable, Hashable, Sendable {
         func unit(_ v: Double) -> Double { min(max(v, 0), 1) }
         return SpaceTheme(
             hue: unit(hue), saturation: unit(saturation), appearance: appearance, secondaryHue: secondaryHue.map(unit),
-            grain: grain.map(unit))
+            grain: grain.map(unit), exact: exact)
     }
 
     /// This theme moved `t` (0...1) of the way toward `other`: hues go the short way round the color wheel, and
@@ -183,24 +186,36 @@ public struct SpaceTheme: Codable, Hashable, Sendable {
             return (a + d * t + 1).truncatingRemainder(dividingBy: 1)
         }
         func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * t }
+        let colors: ExactColors? =
+            switch (exact, other.exact) {
+            case (let a?, let b?): a.blended(toward: b, by: t)
+            case (let a?, nil): t < 0.5 ? a : nil
+            case (nil, let b?): t < 0.5 ? nil : b
+            case (nil, nil): nil
+            }
         return SpaceTheme(
             hue: wheel(hue, other.hue), saturation: mix(saturation, other.saturation), appearance: t < 0.5 ? appearance : other.appearance,
-            secondaryHue: wheel(secondaryHue ?? hue, other.secondaryHue ?? other.hue), grain: mix(grain ?? 0, other.grain ?? 0))
+            secondaryHue: wheel(secondaryHue ?? hue, other.secondaryHue ?? other.hue), grain: mix(grain ?? 0, other.grain ?? 0),
+            exact: colors)
     }
 
     /// Whether two themes look the same (ignoring tiny slider differences).
     public func looksLike(_ other: SpaceTheme) -> Bool {
         abs(hue - other.hue) < 0.005 && abs(saturation - other.saturation) < 0.005 && appearance == other.appearance
-            && abs((secondaryHue ?? hue) - (other.secondaryHue ?? other.hue)) < 0.005
+            && abs((secondaryHue ?? hue) - (other.secondaryHue ?? other.hue)) < 0.005 && exact == other.exact
     }
 
     /// Creates a theme.
-    public init(hue: Double, saturation: Double, appearance: Appearance, secondaryHue: Double? = nil, grain: Double? = nil) {
+    public init(
+        hue: Double, saturation: Double, appearance: Appearance, secondaryHue: Double? = nil, grain: Double? = nil,
+        exact: ExactColors? = nil
+    ) {
         self.hue = hue
         self.saturation = saturation
         self.appearance = appearance
         self.secondaryHue = secondaryHue
         self.grain = grain
+        self.exact = exact
     }
 }
 
@@ -272,6 +287,8 @@ public struct Tab: Codable, Hashable, Identifiable, Sendable {
     public var isMuted: Bool
     /// A name the user gave the tab (Rename…); shown instead of the page title, which keeps updating underneath.
     public var customTitle: String?
+    /// An emoji the user chose as the tab's icon (Change Icon…), shown instead of the site's icon.
+    public var customIcon: String?
 
     /// Creates a tab.
     public init(id: UUID, url: URL?, title: String = "", homeURL: URL? = nil, lastActiveAt: Date, isMuted: Bool = false) {

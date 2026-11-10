@@ -9,13 +9,10 @@ public import SwiftUI
 /// ⌘T / ⌘L. Type a URL or search, or jump to an already-open tab.
 public struct CommandBarView: View {
     let host: any CommandBarHost
-    /// The width on the window's left that isn't page (the sidebar): the bar is centered over the page.
-    let leadingInset: CGFloat
 
-    /// Creates the command bar for a host (normally the app model), centered over the page beside `leadingInset`.
-    public init(host: any CommandBarHost, leadingInset: CGFloat = 0) {
+    /// Creates the command bar for a host (normally the app model).
+    public init(host: any CommandBarHost) {
         self.host = host
-        self.leadingInset = leadingInset
     }
     @Environment(\.colorScheme) var colorScheme
     @State var text = ""
@@ -66,7 +63,10 @@ public struct CommandBarView: View {
         let history = host.historySuggestions(for: query.lowercased())
         var shown = Set<String>()
         if let site = completion, let url = URL(string: "https://\(site)/") {
-            let title = history.first { SiteCompletion.site(of: $0.url) == site && !$0.title.isEmpty }?.title ?? site
+            // The site's own name: its home page's title when visited, else the shortest address's.
+            let title =
+                history.filter { SiteCompletion.site(of: $0.url) == site && !$0.title.isEmpty }
+                .min { $0.url.path().count < $1.url.path().count }?.title ?? site
             out.append(.init(id: "site", title: title, subtitle: site, symbol: "globe", kind: .open(url), url: url))
             shown.insert(site + "/")
         }
@@ -84,10 +84,12 @@ public struct CommandBarView: View {
         }
         for entry in history where out.count < 7 {
             let key = entry.url.absoluteString
-            guard !shown.contains(key),
+            let seen = "\(entry.title)|\(DisplayURL.detailed(entry.url))"  // two rows that read the same are one
+            guard !shown.contains(key), !shown.contains(seen),
                 !(SiteCompletion.site(of: entry.url).map { shown.contains($0 + "/") && entry.url.path.count <= 1 } ?? false)
             else { continue }
             shown.insert(key)
+            shown.insert(seen)
             out.append(
                 .init(
                     id: "history:" + key, title: entry.title.isEmpty ? DisplayURL.short(entry.url) : entry.title,
@@ -101,24 +103,22 @@ public struct CommandBarView: View {
         return out
     }
 
-    /// The command bar overlay: a panel centered over the page, near its top third. Clicking elsewhere on the page
-    /// closes it; the sidebar stays usable. Its place is fixed (it never moves after it appears) and it grows
-    /// downward as suggestions appear.
+    /// The command bar overlay, placed like Arc's (measured from Arc's own window): half the window's width,
+    /// centered on the whole window, its top a little under a third of the way down. Clicking anywhere else closes
+    /// it. Its place is fixed (it never moves after it appears) and it grows downward as suggestions appear.
     public var body: some View {
         GeometryReader { geo in
-            let pageWidth = max(geo.size.width - leadingInset, 0)
-            let width = min(max(pageWidth * 0.46, 520), 760, max(pageWidth - 32, 0))
+            let width = min(max(geo.size.width * Self.widthFraction, 520), max(geo.size.width - 40, 0))
             ZStack(alignment: .topLeading) {
                 #if !os(macOS)
                     Color.clear
                         .contentShape(Rectangle())
-                        .frame(width: pageWidth, height: geo.size.height)
-                        .offset(x: leadingInset)
+                        .frame(width: geo.size.width, height: geo.size.height)
                         .onTapGesture { dismiss() }
                 #endif
                 panel
                     .frame(width: width)
-                    .offset(x: leadingInset + (pageWidth - width) / 2, y: geo.size.height * 0.3)
+                    .offset(x: (geo.size.width - width) / 2, y: geo.size.height * Self.topFraction)
             }
         }
         .ignoresSafeArea()
@@ -159,13 +159,21 @@ public struct CommandBarView: View {
         }
     }
 
+    // Arc's measurements, in points.
+    static let widthFraction = 0.506
+    static let topFraction = 0.315
+    static let fieldHeight: CGFloat = 65
+    static let fieldFont: CGFloat = 18
+    static let rowHeight: CGFloat = 46
+    static let radius: CGFloat = 10
+
     private var panel: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 fieldIcon
                 TextField(host.commandBarDisposition == .newTab ? "Search or Enter URL…" : "Edit URL or search…", text: $text)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 19))
+                    .font(.system(size: Self.fieldFont))
                     .accessibilityLabel("Address and search")
                     .focused($isFocused)
                     .autocorrectionDisabled()
@@ -175,24 +183,28 @@ public struct CommandBarView: View {
                     #endif
                     .onSubmit(commit)
                     .accessibilityIdentifier("commandBar.field")
-                    // The inline completion, in grey after what's typed (→ or Tab takes it; Return opens it).
+                    // The inline completion after what's typed, shown selected in the Space's color as Arc does
+                    // (→ or Tab takes it; Return opens it; typing replaces it).
                     .overlay(alignment: .leading) {
                         if let site = completion, site.count > text.count {
                             HStack(spacing: 0) {
                                 Text(text).hidden()
-                                Text(String(site.dropFirst(text.count))).foregroundStyle(.tertiary)
+                                Text(String(site.dropFirst(text.count)))
+                                    .foregroundStyle(.primary)
+                                    .background(Theme.focus(for: host.commandBarTheme).opacity(0.75))
                             }
-                            .font(.system(size: 19))
+                            .font(.system(size: Self.fieldFont))
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                         }
                     }
             }
-            .padding(.horizontal, 20)
-            .frame(height: 62)
+            .padding(.leading, 23)
+            .padding(.trailing, 20)
+            .frame(height: Self.fieldHeight)
             if !suggestions.isEmpty {
-                Rectangle().fill(.primary.opacity(0.08)).frame(height: 1)
-                VStack(spacing: 2) {
+                Rectangle().fill(.primary.opacity(colorScheme == .dark ? 0.1 : 0.045)).frame(height: 1)
+                VStack(spacing: 6) {
                     ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, s in
                         row(s, isHighlighted: index == highlighted)
                             .contentShape(Rectangle())
@@ -205,21 +217,23 @@ public struct CommandBarView: View {
                             .accessibilityIdentifier("commandBar.suggestion")
                     }
                 }
-                .padding(8)
+                .padding(.top, 7)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 12)
                 .accessibilityElement(children: .contain)
                 .accessibilityLabel("Suggestions")
             }
         }
-        // Frosted glass, the page faintly showing through.
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
-                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(
-                    colorScheme == .dark ? Color.black.opacity(0.25) : Color.white.opacity(0.55))
-            }
-        }
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.primary.opacity(colorScheme == .dark ? 0.14 : 0.08)))
-        .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.16), radius: 50, y: 22)
+        // Opaque, with a hairline edge and a deep soft shadow, like Arc's.
+        .background(
+            colorScheme == .dark ? Color(white: 0.165) : Color(white: 0.973),
+            in: RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+                .strokeBorder(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.16), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(colorScheme == .dark ? 0.5 : 0.3), radius: 34, y: 12)
         #if os(macOS)
             // Esc, or a click anywhere outside the panel (the page, the sidebar), closes it; the click still goes
             // through, so clicking a tab in the sidebar opens it.

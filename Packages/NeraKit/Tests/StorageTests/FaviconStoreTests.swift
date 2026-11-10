@@ -20,6 +20,18 @@ struct FaviconStoreTests {
         #expect(files == ["example.com.png"])
     }
 
+    /// The command bar completes "face" to facebook.com; the icon was saved while visiting www.facebook.com.
+    @Test func wwwAndTheBareDomainShareAnIcon() {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "nera-favicons-\(UUID().uuidString)")
+        let store = FaviconStore(directory: dir)
+        store.save(png, forHost: "www.facebook.com")
+        #expect(store.icon(forHost: "facebook.com") == png)
+        let other = Data([0x89, 0x50, 0x4E, 0x47, 9])
+        store.save(other, forHost: "github.com")
+        #expect(store.icon(forHost: "www.github.com") == other)
+        #expect(store.icon(forHost: "gist.github.com") == nil, "other subdomains are other sites")
+    }
+
     @Test func oversizedIconsAreIgnoredAndClearingWorks() {
         let store = FaviconStore(directory: nil)
         store.save(Data(count: FaviconStore.maxBytes + 1), forHost: "big.example")

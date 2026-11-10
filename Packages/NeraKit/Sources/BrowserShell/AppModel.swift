@@ -199,6 +199,8 @@ public final class AppModel: SidebarHost, CommandBarHost {
         pages.childPageInterceptor = { [weak self] opener, child, url in
             self?.peekIfWanted(opener: opener, child: child, url: url) ?? false
         }
+        pages.peekRule = { [weak self] tabID, url in self?.linkOpensInPeek(from: tabID, to: url) ?? false }
+        pages.openInPeek = { [weak self] opener, url in self?.openInPeek(url, from: opener) }
         startBackgroundSweeps()
     }
 

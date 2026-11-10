@@ -145,7 +145,20 @@ struct EditSpaceView: View {
     }
 
     private func themeBinding(_ space: Space) -> Binding<SpaceTheme> {
-        Binding(get: { space.theme }, set: { model.send(.space(.customize(spaceID, icon: nil, theme: $0))) })
+        Binding(
+            get: { space.theme },
+            set: { edited in
+                // Moving a color control on a Space imported with exact colors (Arc) makes it Nera's own from then on;
+                // the appearance alone keeps them.
+                var theme = edited
+                let old = space.theme
+                if theme.hue != old.hue || theme.saturation != old.saturation || theme.secondaryHue != old.secondaryHue
+                    || theme.grain != old.grain
+                {
+                    theme.exact = nil
+                }
+                model.send(.space(.customize(spaceID, icon: nil, theme: theme)))
+            })
     }
 }
 
