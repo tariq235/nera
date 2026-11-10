@@ -34,6 +34,7 @@
 
         /// The demo library.
         static func library() -> BrowserState {
+            if PromoMode.scene != nil { return PromoMode.library() }  // --promo: the promo video's sidebar
             let now = Date()
             func tab(_ url: String, _ title: String, home: Bool = false, ago: TimeInterval = 600) -> Tab {
                 let u = URL(string: url)
@@ -219,9 +220,15 @@
         /// Puts the welcome screen on the step named by `--shot welcome-<step>`, with made-up import data.
         static func prepare(_ flow: OnboardingFlow) {
             runAutopilot(flow)
+            if PromoMode.flow == nil { PromoMode.flow = flow }  // SwiftUI keeps the first flow it makes
             guard isRequested, let shot = argument(after: "--shot"), shot.hasPrefix("welcome-") else { return }
             let name = shot.dropFirst("welcome-".count)
             guard let step = OnboardingFlow.Step.allCases.first(where: { "\($0)" == name }) else { return }
+            showDemo(step, in: flow)
+        }
+
+        /// Puts the welcome screen on `step`, with made-up import data (never the Mac's real browser data).
+        static func showDemo(_ step: OnboardingFlow.Step, in flow: OnboardingFlow) {
             let library = Self.library()
             let emoji = ["🏡", "💻", "📚", "🚀"]
             let spaces = library.spaces.enumerated().map { i, space in
