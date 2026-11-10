@@ -250,10 +250,18 @@ extension Reducer {
         return tab.url.map { [.load(tabID: tab.id, url: $0)] } ?? []
     }
 
-    /// After closing the selected tab, select the tab above it (or below if it was first).
+    /// After closing the selected tab, go back to the tab used before it, like Arc: the most recently used other tab
+    /// in the Space or its Favorites (open a page from ⌘T, ⌘W, and you're back where you were). Without one, the tab
+    /// above it (or below if it was first).
     private static func neighborForSelection(_ state: BrowserState, closing id: UUID) -> UUID? {
         guard state.selectedTabID == id, let space = state.selectedSpace else { return state.selectedTabID }
         let tabs = state.orderedTabs(in: space)
+        let candidates = (tabs + (state.currentProfile?.favorites ?? [])).filter { $0.id != id }
+        if let previous = candidates.max(by: { $0.lastActiveAt < $1.lastActiveAt }),
+            candidates.filter({ $0.lastActiveAt == previous.lastActiveAt }).count == 1
+        {
+            return previous.id
+        }
         guard let i = tabs.firstIndex(where: { $0.id == id }) else { return nil }
         if i > 0 { return tabs[i - 1].id }
         return tabs.count > 1 ? tabs[1].id : nil

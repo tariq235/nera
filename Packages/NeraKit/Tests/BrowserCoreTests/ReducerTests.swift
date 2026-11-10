@@ -60,6 +60,25 @@ struct ReducerTests {
         #expect(effects == [.discardPage(tabID: a)])
     }
 
+    /// On GitHub, ⌘T a site, ⌘W: back on GitHub, not on the pinned tab above the new one (Arc does the same).
+    @Test func closingATabGoesBackToTheTabUsedBeforeIt() {
+        var h = Harness()
+        let pinned = h.open("https://mail.example")
+        h.send(.tab(.togglePin(pinned)))
+        h.env.now += 60
+        let github = h.open("https://github.com")
+        h.env.now += 60
+        let other = h.open("https://news.example")  // Today: other, github
+        h.env.now += 60
+        h.send(.tab(.select(github)))
+        h.env.now += 60
+        let facebook = h.open("https://facebook.com")  // Today: facebook, other, github; pinned above
+        h.env.now += 5
+        h.send(.tab(.close(facebook)))
+        #expect(h.state.selectedTabID == github)
+        _ = other
+    }
+
     @Test func closingPinnedTabKeepsItButUnloads() {
         var h = Harness()
         let a = h.open("https://a.example")

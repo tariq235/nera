@@ -53,7 +53,7 @@ public struct RootView: View {
             }
             .overlay {
                 if model.isCommandBarPresented {
-                    CommandBarView(host: model, leadingInset: commandBarInset)  // appears at once, like a menu
+                    CommandBarView(host: model)  // appears at once, like a menu
                 }
             }
             .overlay(alignment: .bottom) { if !model.isWelcomePresented { NoticeBanner(model: model) } }
@@ -83,15 +83,6 @@ public struct RootView: View {
                     openWindow(id: AppModel.littleWindowID, value: id)
                 }
             #endif
-    }
-
-    /// The command bar is centered over the page, beside the sidebar when it's shown.
-    private var commandBarInset: CGFloat {
-        #if os(macOS)
-            sidebarShown ? sidebarWidth : 0
-        #else
-            0
-        #endif
     }
 
     /// Light or dark (Settings › General › Appearance; private windows are always dark).

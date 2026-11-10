@@ -128,6 +128,10 @@ struct SpaceMenuItems: View {
         Button("Change Space Icon…") { host.editSpace(space.id) }
         Button("Rename Space…") { host.editSpace(space.id) }
         Button("Edit Theme Color…") { host.editSpace(space.id) }
+        // A Space imported from Arc before Nera brought colors over: its exact Arc colors, one click away.
+        if let arc = host.arcTheme(for: space.id), !space.theme.looksLike(arc) {
+            Button("Use Colors from Arc") { host.send(.space(.customize(space.id, icon: nil, theme: arc))) }
+        }
         if host.state.profiles.count > 1 {
             Menu("Set Profile") {
                 ForEach(host.state.profiles) { profile in
@@ -235,7 +239,8 @@ struct SpaceHeader: View {
             .accessibilityLabel("Space options")
             .accessibilityIdentifier("sidebar.spaceMenu")
         }
-        .foregroundStyle(.primary.opacity(0.75))
+        // Readable on every Space color (WCAG 4.5:1 on the lightest), still quieter than the tabs below.
+        .foregroundStyle(.primary.opacity(0.85))
         .padding(.horizontal, 8).padding(.top, 2)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }

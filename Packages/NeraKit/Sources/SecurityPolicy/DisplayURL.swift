@@ -21,6 +21,18 @@ public enum DisplayURL {
         }
     }
 
+    /// The address with its path, for lists where pages of one site must be told apart (the command bar): the host
+    /// as in ``short(_:)`` first, so the real site always leads, then the path and query, without the scheme or
+    /// fragment. Long ones are cut in the middle where they're shown.
+    public static func detailed(_ url: URL?) -> String {
+        guard let url, ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return short(url) }
+        var text = short(url)
+        let path = url.path(percentEncoded: false)
+        if path != "/" && !path.isEmpty { text += path }
+        if let query = url.query(percentEncoded: false), !query.isEmpty { text += "?" + query }
+        return text
+    }
+
     /// True for http:// pages (shown with a "Not Secure" badge).
     public static func isInsecure(_ url: URL?) -> Bool {
         url?.scheme?.lowercased() == "http" && !NavigationPolicy.isLoopback(url?.host()?.lowercased() ?? "")

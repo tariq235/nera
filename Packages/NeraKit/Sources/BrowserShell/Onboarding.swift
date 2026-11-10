@@ -284,7 +284,9 @@ final class OnboardingFlow {
     private func finish() {
         guard !isFinishing else { return }  // "Start Browsing" pressed again while extensions finish installing
         isFinishing = true
-        for (space, look) in zip(model.state.spaces, Self.looks(startingWith: theme, count: model.state.spaces.count)) {
+        // Spaces brought over with their own colors (Arc) keep them: that's how they looked at home.
+        let plain = model.state.spaces.filter { $0.theme.exact == nil }
+        for (space, look) in zip(plain, Self.looks(startingWith: theme, count: plain.count)) {
             model.send(.space(.customize(space.id, icon: nil, theme: look)))
         }
         let installs = installs

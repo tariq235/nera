@@ -26,9 +26,16 @@ public final class FaviconStore: @unchecked Sendable {
         return FaviconStore(directory: base.appending(path: "\(bundleID)/Favicons", directoryHint: .isDirectory))
     }
 
-    /// The cached icon for a host.
+    /// The cached icon for a host. "www." and the bare domain are one site: facebook.com finds the icon saved for
+    /// www.facebook.com (completed addresses have no "www.").
     public func icon(forHost host: String) -> Data? {
-        let key = Self.key(host)
+        if let data = cached(Self.key(host)) { return data }
+        let lower = host.lowercased()
+        let other = lower.hasPrefix("www.") ? String(lower.dropFirst(4)) : "www." + lower
+        return cached(Self.key(other))
+    }
+
+    private func cached(_ key: String) -> Data? {
         guard !key.isEmpty else { return nil }
         return lock.withLock {
             if let data = memory[key] { return data }

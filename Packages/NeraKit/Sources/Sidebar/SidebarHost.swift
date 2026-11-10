@@ -32,6 +32,8 @@ public protocol SidebarHost: AnyObject {
     func focusPage()
     /// Opens the Edit Space sheet (name, icon and colors).
     func editSpace(_ id: UUID)
+    /// The Space's colors in Arc, when it was imported from Arc and Arc's data is still on this Mac.
+    func arcTheme(for spaceID: UUID) -> SpaceTheme?
     /// + New Space: makes a Space and opens New Space to name and style it.
     func newSpace()
     /// How far a two-finger swipe on the sidebar has dragged the Space sideways (points; 0 when idle).
@@ -68,4 +70,6 @@ extension SidebarHost {
     public var isPageFullscreen: Bool { false }
     /// Nothing to leave by default.
     public func exitPageFullscreen() {}
+    /// No Arc colors unless the host has them.
+    public func arcTheme(for spaceID: UUID) -> SpaceTheme? { nil }
 }

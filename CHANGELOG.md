@@ -4,6 +4,18 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.5 — 2026-11-10
+
+- **Your Arc colors:** Spaces imported from Arc keep their exact colors, and the highlight in the command bar is the
+  same soft tone of your Space's color as in Arc. Imported before? Right-click a Space › Use Colors from Arc.
+- **Command bar, like Arc's:** the same size and place (centered on the window), an opaque panel with a deeper
+  shadow, the completed address shown selected, and the highlighted suggestion with its site icon on a white tile.
+  Pages of one site show their addresses, so they're easy to tell apart, and repeated suggestions are gone.
+- **Fixed:** ⌘W after opening a page from the command bar went to the pinned tab above it instead of back to the tab
+  you were on.
+- **Fixed:** sites' icons were missing in the command bar when the address had no "www." (facebook.com).
+- **Fixed:** the page could disappear after a Space's colors changed.
+
 ## 0.1.4 — 2026-11-09
 
 - **Video full screen:** YouTube, X and other videos now fill the whole screen; Esc returns to the window. Move the
