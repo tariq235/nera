@@ -14,6 +14,7 @@
 #include "include/cef_client.h"
 #include "include/cef_image.h"
 #include "include/cef_cookie.h"
+#include "include/cef_devtools_message_observer.h"
 #include "include/cef_permission_handler.h"
 #include "include/cef_request_context.h"
 #include "include/cef_request_context_handler.h"
@@ -530,6 +531,39 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
 }
 @end
 
+/// Waits for one DevTools method's result (Page.captureScreenshot) and hands back the PNG it carries.
+class CaptureObserver : public CefDevToolsMessageObserver {
+   public:
+    explicit CaptureObserver(void (^completion)(NSData *)) : completion_([completion copy]) {}
+    int messageID_ = 0;
+    CefRefPtr<CefRegistration> registration_;
+
+    void OnDevToolsMethodResult(CefRefPtr<CefBrowser>, int message_id, bool success, const void *result, size_t size) override {
+        if (message_id != messageID_) return;
+        NSData *png = nil;
+        if (success && result && size > 0) {
+            NSDictionary *answer = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:size] options:0 error:nil];
+            NSString *base64 = [answer isKindOfClass:NSDictionary.class] ? answer[@"data"] : nil;
+            if ([base64 isKindOfClass:NSString.class]) png = [[NSData alloc] initWithBase64EncodedString:base64 options:0];
+        }
+        Finish(png);
+    }
+
+    /// Answers once; the registration is dropped afterwards, outside CEF's callback.
+    void Finish(NSData *png) {
+        if (!completion_) return;
+        void (^completion)(NSData *) = completion_;
+        completion_ = nil;
+        completion(png);
+        CefRefPtr<CaptureObserver> keep = this;
+        dispatch_async(dispatch_get_main_queue(), ^{ keep->registration_ = nullptr; });
+    }
+
+   private:
+    void (^completion_)(NSData *);
+    IMPLEMENT_REFCOUNTING(CaptureObserver);
+};
+
 @implementation NRAChromiumPage {
     CefRefPtr<PageClient> _client;
     CefRefPtr<CefBrowser> _browser;
@@ -626,6 +660,36 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
         keep->FinishEvaluation(requestID, nil);
     });
 }
+- (void)print {
+    [self withBrowser:^{ self->_browser->GetHost()->Print(); }];
+}
+
+- (void)capturePNGWidth:(double)width
+                 height:(double)height
+                  scale:(double)scale
+             completion:(void (^)(NSData *_Nullable))completion {
+    if (_closed || !_browser) return completion(nil);
+    CefRefPtr<CefBrowserHost> host = _browser->GetHost();
+    CefRefPtr<CaptureObserver> observer = new CaptureObserver(completion);
+    observer->registration_ = host->AddDevToolsMessageObserver(observer);
+    CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+    params->SetString("format", "png");
+    if (width > 0 && height > 0) {
+        CefRefPtr<CefDictionaryValue> clip = CefDictionaryValue::Create();
+        clip->SetDouble("x", 0);
+        clip->SetDouble("y", 0);
+        clip->SetDouble("width", width);
+        clip->SetDouble("height", height);
+        clip->SetDouble("scale", scale > 0 ? scale : 1);
+        params->SetDictionary("clip", clip);
+        params->SetBool("captureBeyondViewport", true);
+    }
+    observer->messageID_ = host->ExecuteDevToolsMethod(0, "Page.captureScreenshot", params);
+    if (observer->messageID_ == 0) return observer->Finish(nil);
+    // A capture that never answers (the page went away) ends after 20 seconds.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{ observer->Finish(nil); });
+}
+
 - (void)showDevTools {
     if (!_browser || !_client || !_client->devToolsEnabled_) return;
     CefWindowInfo window;

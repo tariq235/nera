@@ -31,6 +31,12 @@ public struct SidebarView: View {
 
     private var space: Space? { host.state.selectedSpace }
 
+    /// Whether a pinned node holds the selected tab.
+    private func containsSelection(_ node: Node) -> Bool {
+        guard let selected = host.state.selectedTabID else { return false }
+        return node.tabs.contains { $0.id == selected }
+    }
+
     /// The sidebar.
     public var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -101,7 +107,11 @@ public struct SidebarView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 2) {
-                    ForEach(space.pinned) { node in NodeRow(host: host, node: node).sidebarDropTarget(host, .before(node.id)) }
+                    // Folded away (click the Space's name): only the pinned tab you're on stays in view.
+                    ForEach(space.isPinnedCollapsed ? space.pinned.filter(containsSelection) : space.pinned) { node in
+                        NodeRow(host: host, node: node).sidebarDropTarget(host, .before(node.id))
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
                     if !host.isPrivateSession {
                         TodayDivider(host: host).sidebarDropTarget(host, .endOf(.pinned))  // drop on the divider to pin
                     }
@@ -224,7 +234,16 @@ struct SpaceHeader: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            SpaceIconView(icon: space.icon).frame(width: 16)
+            // Like Arc: on hover the chevron takes the icon's place; a click folds the pinned section away.
+            Group {
+                if isHovering || space.isPinnedCollapsed {
+                    Image(systemName: "chevron.down").font(.system(size: 10.5, weight: .bold))
+                        .rotationEffect(.degrees(space.isPinnedCollapsed ? -90 : 0))
+                } else {
+                    SpaceIconView(icon: space.icon)
+                }
+            }
+            .frame(width: 16)
             Text(space.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
             Spacer()
             Menu {
@@ -243,8 +262,16 @@ struct SpaceHeader: View {
         .foregroundStyle(.primary.opacity(0.85))
         .padding(.horizontal, 8).padding(.top, 2)
         .contentShape(Rectangle())
+        .background(isHovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
         .onTapGesture(count: 2) { host.editSpace(space.id) }
+        .onTapGesture {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { host.send(.space(.togglePinnedSection(space.id))) }
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityValue(space.isPinnedCollapsed ? "Pinned tabs hidden" : "Pinned tabs shown")
+        .accessibilityAction { host.send(.space(.togglePinnedSection(space.id))) }  // the button's press
+        .accessibilityAction(named: "Edit Space") { host.editSpace(space.id) }
         .accessibilityIdentifier("sidebar.spaceHeader")
     }
 }

@@ -64,6 +64,11 @@ public protocol ChromiumPageHandle: AnyObject {
     func showDevTools()
     /// Runs one of Nera's scripts in the top frame; the result as a string (objects as JSON), `nil` on failure.
     func evaluate(_ script: String) async -> String?
+    /// Opens the Mac's print panel for the page.
+    func printPage()
+    /// The page as PNG: on screen when `width` or `height` is 0, else the top-left `width` × `height` CSS pixels at
+    /// `scale`. nil on failure.
+    func capturePNG(width: Double, height: Double, scale: Double) async -> Data?
     /// Cancels a running download; a cancelled ``ChromiumDownloadProgress`` follows.
     func cancelDownload(_ id: UInt32)
     /// Closes the browser. No events arrive afterwards.

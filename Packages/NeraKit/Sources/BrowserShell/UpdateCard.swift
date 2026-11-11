@@ -32,31 +32,39 @@ struct UpdateCard: View {
     /// This version is newer than the one seen last: show "updated" once.
     private var justUpdated: Bool { !lastSeenVersion.isEmpty && lastSeenVersion != model.appVersion }
 
+    /// Like Arc's: what's ready, the Automatic Updates choice right there, and one button to restart into it.
     private func ready(_ version: String) -> some View {
-        Button {
+        VStack(spacing: 10) {
+            Text("Nera \(version) is ready").font(.system(size: 13.5, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 18)  // clear of the close button
+            Divider().opacity(0.5)
             #if os(macOS)
-                model.restartToUpdate()
+                Toggle("Automatic Updates", isOn: Binding(get: { model.checksForUpdates }, set: { model.checksForUpdates = $0 }))
+                    .toggleStyle(.checkbox)
+                    .font(.system(size: 12.5))
+                    .accessibilityIdentifier("update.automatic")
             #endif
-        } label: {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Nera \(version) is ready").font(.system(size: 13.5, weight: .bold))
-                    Text("Click to restart").font(.system(size: 12)).opacity(0.75)
-                }
-                Spacer(minLength: 4)
-                UpdateGlyph()
+            Button {
+                #if os(macOS)
+                    model.restartToUpdate()
+                #endif
+            } label: {
+                Text("Restart and Update")
+                    .font(.system(size: 13, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 30)
+                    .foregroundStyle(.white)
+                    .background(Theme.deepTone(for: model.displayedTheme), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .contentShape(Rectangle())
             }
-            .padding(12)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("update.restart")
         }
-        .buttonStyle(.plain)
+        .padding(12)
         .cardStyle()
-        .contextMenu {
-            Button("Later (Installs When You Quit)") { dismissedReady = true }
-            automaticToggle
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Nera \(version) is ready. Restart to update.")
+        .overlay(alignment: .topTrailing) { CloseButton { dismissedReady = true }.help("Later (installs when you quit)") }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Nera \(version) is ready")
         .accessibilityIdentifier("update.ready")
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
@@ -112,10 +120,6 @@ struct UpdateCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    private var automaticToggle: some View {
-        Toggle("Download Updates Automatically", isOn: Binding(get: { model.checksForUpdates }, set: { model.checksForUpdates = $0 }))
     }
 }
 

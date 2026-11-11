@@ -173,6 +173,12 @@ final class CEFPage: NSObject, ChromiumPageHandle {
     func evaluate(_ script: String) async -> String? {
         await withCheckedContinuation { done in bridge.evaluate(script) { done.resume(returning: $0) } }
     }
+    func printPage() { bridge.print() }
+    func capturePNG(width: Double, height: Double, scale: Double) async -> Data? {
+        await withCheckedContinuation { done in
+            bridge.capturePNGWidth(width, height: height, scale: scale) { done.resume(returning: $0) }
+        }
+    }
     func close() {
         events = nil
         bridge.close()

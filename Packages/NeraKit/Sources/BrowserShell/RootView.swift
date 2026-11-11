@@ -299,6 +299,9 @@ struct ContentArea: View {
                     .id(request.id)
             }
         }
+        #if os(macOS)
+            .overlay { if model.isCapturing { CaptureOverlay(model: model) } }
+        #endif
         .overlay {
             if let page = model.peekPage {
                 PeekView(model: model, page: page)

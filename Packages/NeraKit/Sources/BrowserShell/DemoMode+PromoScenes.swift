@@ -54,6 +54,14 @@
             case "spaces": await spacesScene(model)
             case "theme": await themeScene(model)
             case "peeklink": await peekLinkScene(model)
+            case "sitecontrols":  // the address bar's site controls, opened by a click
+                await wait(0.5)
+                model.isSiteControlsPresented = true
+                await wait(2)
+            case "capture":  // File › Capture…, waiting for an area
+                await wait(0.5)
+                model.startCapture()
+                await wait(1.5)
             case "command":  // the command bar completing an address, held still (for comparing with Arc)
                 shortcut(["⌘", "T"]) { model.showCommandBar(.newTab) }
                 await wait(0.5)
@@ -96,8 +104,8 @@
             shortcut(["↩"]) { press(36, "\r") }
             log("switched")
             await wait(1.5)
-            // ⌃⌘N: a new tab in Split View; "excal" completes to excalidraw.com.
-            shortcut(["⌃", "⌘", "N"]) { model.showCommandBar(.splitWithCurrent) }
+            // ⌃⇧=: a new tab in Split View; "excal" completes to excalidraw.com.
+            shortcut(["⌃", "⇧", "="]) { model.showCommandBar(.splitWithCurrent) }
             await wait(0.45)
             await type("excal", every: 0.08)
             await wait(0.35)

@@ -103,14 +103,28 @@ extension AppModel {
 #if canImport(SwiftUI)
     public import SwiftUI
 
+    /// What a new browser window opens with. Each request is new (SwiftUI reuses a window opened with an equal
+    /// value): ⌘N twice makes two windows.
+    public struct BrowserWindowRequest: Codable, Hashable, Sendable {
+        /// Distinguishes requests.
+        public var id = UUID()
+        /// A blank window (⌃⌘N): no tab selected, no command bar.
+        public var blank: Bool
+
+        /// A request.
+        public init(blank: Bool) { self.blank = blank }
+    }
+
     /// A further browser window (⌘N): its own window model sharing the app's model, opened with the command bar.
-    /// The first browser window shows the app's model itself.
+    /// A blank one (⌃⌘N) opens on its start page instead. The first browser window shows the app's model itself.
     public struct BrowserWindowRoot: View {
         @State private var model: AppModel
+        let isBlank: Bool
 
-        /// Creates a window sharing `main`.
-        public init(main: AppModel) {
+        /// Creates a window sharing `main`; `blank`: no tab selected, no command bar.
+        public init(main: AppModel, blank: Bool = false) {
             _model = State(initialValue: AppModel.window(sharing: main))
+            isBlank = blank
         }
 
         /// The window.
@@ -119,7 +133,9 @@ extension AppModel {
                 #if os(macOS)
                     .background(MatchFrontWindowFrame(offset: CGSize(width: 26, height: -26)))
                 #endif
-                .onAppear { model.showCommandBar(.newTab) }
+                .onAppear {
+                    if isBlank { model.send(.tab(.clearSelection)) } else { model.showCommandBar(.newTab) }
+                }
                 .onDisappear { model.windowClosed() }
         }
     }

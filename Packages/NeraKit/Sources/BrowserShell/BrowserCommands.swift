@@ -41,27 +41,49 @@ public struct BrowserCommands: Commands {
             #endif
             Button("Check for Updates…") { model.checkForUpdates(force: true) }
         }
+        // Arc's File menu, in its order.
         CommandGroup(replacing: .newItem) {
             Button("New Tab…") { model.showCommandBar(.newTab) }.keyboardShortcut("t")
-            Button("New Window") { openWindow(id: AppModel.browserWindowID) }.keyboardShortcut("n")
-            Button("Open Location…") { model.showCommandBar(.currentTab) }.keyboardShortcut("l")
+            Button("New Window") { openWindow(id: AppModel.browserWindowID, value: BrowserWindowRequest(blank: false)) }.keyboardShortcut(
+                "n")
+            Button("Blank Window") { openWindow(id: AppModel.browserWindowID, value: BrowserWindowRequest(blank: true)) }.keyboardShortcut(
+                "n", modifiers: [.command, .control])
             Button("New Private Window") { openWindow(id: AppModel.privateWindowID) }.keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("New Tab in Split View…") { model.showCommandBar(.splitWithCurrent) }.keyboardShortcut(
-                "n", modifiers: [.command, .control]
-            )
-            .disabled(model.state.selectedTab == nil)
+            #if os(macOS)
+                Button("New Little Window…") { model.showCommandBar(.littleWindow) }.keyboardShortcut("n", modifiers: [.command, .option])
+                    .disabled(model.isPrivate)
+            #endif
             Button("Restore Last Closed Tab") { model.send(.tab(.restoreLastClosed)) }.keyboardShortcut("t", modifiers: [.command, .shift])
             Divider()
+            Button("Open Location…") { model.showCommandBar(.currentTab) }.keyboardShortcut("l")
+            Divider()
+            #if os(macOS)
+                Button("Close Window") { NSApp.keyWindow?.performClose(nil) }.keyboardShortcut("w", modifiers: [.command, .shift])
+            #endif
             // ⌘W closes what's in front: the command bar if it's open, otherwise the tab. Only an empty private
             // window closes itself; the main window never closes on ⌘W (⇧⌘W closes it).
             Button("Close Tab") { model.closeFrontmost() }
                 .keyboardShortcut("w")
             #if os(macOS)
-                Button("Close Window") { NSApp.keyWindow?.performClose(nil) }.keyboardShortcut("w", modifiers: [.command, .shift])
+                Divider()
+                if let url = model.state.selectedTab?.url {
+                    ShareLink(item: url) { Text("Share…") }
+                } else {
+                    Button("Share…") {}.disabled(true)
+                }
+                Button("Capture…") { model.startCapture() }.keyboardShortcut("2", modifiers: [.command, .shift])
+                    .disabled(model.selectedPage == nil)
+                Button("Capture Full Page") { model.captureFullPage() }.disabled(model.selectedPage == nil)
+                Button("Save Page As…") { model.savePageAs() }.keyboardShortcut("s", modifiers: [.command, .shift])
+                    .disabled(model.selectedPage == nil)
+                Button("Print…") { model.printPage() }.keyboardShortcut("p").disabled(model.selectedPage == nil)
             #endif
         }
         CommandMenu("Tabs") {
             Button("Pin / Unpin Tab") { model.togglePinSelectedTab() }.keyboardShortcut("d")
+            // Arc's shortcut for Split View (⌃⌘N is Blank Window, as in Arc).
+            Button("Add Split View…") { model.showCommandBar(.splitWithCurrent) }.keyboardShortcut("=", modifiers: [.control, .shift])
+                .disabled(model.state.selectedTab == nil)
             // ⇧⌘] / ⇧⌘[ (also ⌥⌘↓/↑ and ⌃Tab/⌃⇧Tab, see TabKeys).
             Button("Next Tab") { model.send(.tab(.selectAdjacent(offset: 1))) }.keyboardShortcut("]", modifiers: [.command, .shift])
             Button("Previous Tab") { model.send(.tab(.selectAdjacent(offset: -1))) }.keyboardShortcut("[", modifiers: [.command, .shift])
@@ -104,6 +126,15 @@ public struct BrowserCommands: Commands {
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.control])
             }
         }
+        #if os(macOS)
+            // ⌘Z: the text being edited (a field, or a field in the page) undoes as usual; otherwise it brings back
+            // what was closed last, like Arc: the last closed tab, or the Today tabs a Clear removed.
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") { model.undo() }.keyboardShortcut("z")
+                Button("Redo") { NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) }.keyboardShortcut(
+                    "z", modifiers: [.command, .shift])
+            }
+        #endif
         CommandGroup(after: .toolbar) {
             Button(model.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") { model.isSidebarVisible.toggle() }.keyboardShortcut("s")
             Divider()

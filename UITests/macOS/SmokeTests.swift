@@ -147,11 +147,11 @@ final class SmokeTests: NeraUITestCase {
         app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// ⌃⌘N opens a tab in Split View next to the current one; both panes show.
+    /// ⌃⇧= (Add Split View) opens a tab in Split View next to the current one; both panes show.
     func testSplitViewShowsBothTabs() {
         openViaCommandBar("data:text/html,<title>Left Page</title>")
         XCTAssertTrue(sidebarTab("Left Page").waitForExistence(timeout: 15))
-        app.typeKey("n", modifierFlags: [.command, .control])
+        app.typeKey("=", modifierFlags: [.control, .shift])
         let field = app.textFields["commandBar.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.typeText("data:text/html,<title>Right Page</title>\n")

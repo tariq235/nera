@@ -104,6 +104,8 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var isSidebarPeeking = false
     /// Site icons by host.
     @ObservationIgnored public let favicons: FaviconStore
+    /// Where downloads and captures are saved (nil: downloads are off).
+    @ObservationIgnored public let downloadsDirectory: URL?
     /// Installed Chrome extensions.
     @ObservationIgnored public let extensionStore: ExtensionStore
     /// Bumped when extensions change, so views reload the list.
@@ -123,6 +125,10 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var isImportingFromArc = false
     /// A one-line message for the notice banner.
     public var notice: String?
+    /// File › Capture… is waiting for an area of the page to be chosen.
+    public var isCapturing = false
+    /// The site controls (the address pill's popover) are open.
+    public var isSiteControlsPresented = false
     /// Assistive apps and Chromium pages (A11Y-009, WebAccessibility.swift).
     public var assistive = AssistiveAppsState()
     @ObservationIgnored var safetyBox = SafetyBox()
@@ -151,6 +157,7 @@ public final class AppModel: SidebarHost, CommandBarHost {
         self.store = store
         self.history = history
         self.favicons = favicons
+        self.downloadsDirectory = downloadsDirectory
         self.extensionStore = extensions
         self.pages = PageManager(registry: registry, policy: NavigationPolicy(httpsOnly: store.state.settings.httpsOnly))
         store.effectHandler = { [weak self] effect in
@@ -211,6 +218,7 @@ public final class AppModel: SidebarHost, CommandBarHost {
         pages = main.pages
         history = main.history
         favicons = main.favicons
+        downloadsDirectory = main.downloadsDirectory
         extensionStore = main.extensionStore
         safetyBox = main.safetyBox
     }
@@ -234,33 +242,6 @@ public final class AppModel: SidebarHost, CommandBarHost {
 
     /// Shows the Arc import file picker.
     public func requestArcImport() { isImportingFromArc = true }
-
-    /// Opens command-bar input. Blocked URLs never become a tab.
-    public func submitCommandBar(_ text: String) {
-        isCommandBarPresented = false
-        guard let result = Omnibox.parse(text, engine: state.settings.searchEngine) else { return }
-        if case .block(let reason) = pages.policy.decide(result.url, trigger: .userTyped) {
-            pages.lastBlocked = BlockedNavigation(url: result.url, reason: reason, tabID: state.selectedTabID ?? UUID())
-            return
-        }
-        send(.tab(.open(result.url, commandBarDisposition)))
-    }
-
-    /// Bookmark matches (first, up to 3) then history matches for the command bar (current profile).
-    public func historySuggestions(for query: String) -> [CommandBarSuggestion] {
-        guard let profile = state.currentProfile else { return [] }
-        let words = query.lowercased().split(whereSeparator: \.isWhitespace)
-        let bookmarks = profile.bookmarkTree.allLinks.filter { link in
-            let haystack = (link.title + " " + (link.url?.absoluteString ?? "")).lowercased()
-            return !words.isEmpty && words.allSatisfy { haystack.contains($0) }
-        }
-        var out = bookmarks.prefix(3).compactMap { b in b.url.map { CommandBarSuggestion(url: $0, title: b.title, isBookmark: true) } }
-        let shown = Set(out.map(\.url))
-        for entry in history?.search(query, profileID: profile.id, limit: 5) ?? [] where !shown.contains(entry.url) {
-            out.append(CommandBarSuggestion(url: entry.url, title: entry.title, isBookmark: false))
-        }
-        return out
-    }
 
     /// Focuses a tab and closes the command bar.
     public func switchToTab(_ id: UUID) {

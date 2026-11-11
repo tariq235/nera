@@ -44,7 +44,9 @@
             let frame = main.frame
             let rect = CGRect(x: frame.minX, y: screen.frame.maxY - frame.maxY, width: frame.width, height: frame.height)
             // Front to back, as they are on screen.
-            let numbers = NSApp.orderedWindows.filter { $0.isVisible }.map { UInt32($0.windowNumber) }
+            // Popovers (their own windows) first: they're always in front.
+            let popovers = NSApp.windows.filter { $0.isVisible && String(describing: type(of: $0)).contains("Popover") }
+            let numbers = (popovers + NSApp.orderedWindows.filter { $0.isVisible }).map { UInt32($0.windowNumber) }
             return (rect, numbers)
         }
 

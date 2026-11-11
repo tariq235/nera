@@ -69,8 +69,8 @@ struct NeraApp: App {
 
         #if os(macOS)
             // ⌘N: more browser windows. They share the library, each with its own Space and tab (ADR-0013).
-            WindowGroup("Browser Window", id: AppModel.browserWindowID) {
-                BrowserWindowRoot(main: model)
+            WindowGroup("Browser Window", id: AppModel.browserWindowID, for: BrowserWindowRequest.self) { $request in
+                BrowserWindowRoot(main: model, blank: request?.blank ?? false)
                     .frame(minWidth: 820, minHeight: 520)
             }
             .handlesExternalEvents(matching: [])  // links from other apps go to the main window

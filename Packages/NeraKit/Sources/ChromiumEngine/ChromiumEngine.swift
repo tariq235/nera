@@ -168,6 +168,18 @@ final class ChromiumPage: WebPage {
         return await handle.evaluate(script)
     }
 
+    func printPage() {
+        guard !isClosed else { return }
+        handle.printPage()
+    }
+
+    func capture(fullPage: Bool) async -> Data? {
+        guard !isClosed else { return nil }
+        guard fullPage else { return await handle.capturePNG(width: 0, height: 0, scale: 1) }
+        guard let plan = PageCapture.plan(fromSizeScript: await handle.evaluate(PageCapture.sizeScript)) else { return nil }
+        return await handle.capturePNG(width: plan.width, height: plan.height, scale: plan.scale)
+    }
+
     func showDevTools() -> Bool {
         guard !isClosed else { return false }
         handle.showDevTools()

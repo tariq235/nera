@@ -54,4 +54,109 @@ final class TabsUITests: NeraUITestCase {
         app.menuItems["Remove Favorite"].click()
         XCTAssertTrue(sidebarTab("Mail").waitForExistence(timeout: 5), "removed from Favorites, kept as a tab with its new name")
     }
+
+    /// ⌘W, then ⌘Z: the tab comes back (Arc's undo).
+    func testUndoBringsBackAClosedTab() {
+        openViaCommandBar("data:text/html,<title>Undo Me</title><h1>undo</h1>")
+        XCTAssertTrue(sidebarTab("Undo Me").waitForExistence(timeout: 15))
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(sidebarTab("Undo Me").waitForNonExistence(timeout: 5))
+        app.typeKey("z", modifierFlags: .command)
+        XCTAssertTrue(sidebarTab("Undo Me").waitForExistence(timeout: 5), "⌘Z didn't bring the tab back")
+    }
+
+    /// Typing in a page's field, ⌘Z undoes the typing: it doesn't reopen a closed tab.
+    func testUndoWhileTypingInAPageLeavesClosedTabsClosed() {
+        openViaCommandBar("data:text/html,<title>Closed One</title>")
+        XCTAssertTrue(sidebarTab("Closed One").waitForExistence(timeout: 15))
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(sidebarTab("Closed One").waitForNonExistence(timeout: 5))
+        openViaCommandBar("data:text/html,<title>Form</title><input id=f autofocus style='width:90vw;height:60vh;font-size:40px'>")
+        XCTAssertTrue(sidebarTab("Form").waitForExistence(timeout: 15))
+        let window = app.windows.firstMatch
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.4)).click()
+        app.typeText("hello")
+        app.typeKey("z", modifierFlags: .command)
+        sleep(2)
+        XCTAssertFalse(sidebarTab("Closed One").exists, "⌘Z in a page's field reopened a closed tab")
+    }
+
+    /// Two pinned tabs (⌘D): dragging the lower one onto the upper one puts it first, and it stays pinned.
+    func testDraggingReordersPinnedTabs() {
+        for title in ["Pin One", "Pin Two"] {
+            openViaCommandBar("data:text/html,<title>\(title)</title>")
+            XCTAssertTrue(sidebarTab(title).waitForExistence(timeout: 15))
+            app.typeKey("d", modifierFlags: .command)  // pin; pinned tabs keep their order (first pinned first)
+        }
+        let one = sidebarTab("Pin One")
+        let two = sidebarTab("Pin Two")
+        XCTAssertLessThan(one.frame.minY, two.frame.minY)
+        two.click(forDuration: 0.6, thenDragTo: one)
+        let moved = NSPredicate { _, _ in self.sidebarTab("Pin Two").frame.minY < self.sidebarTab("Pin One").frame.minY }
+        wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
+        let newTab = app.descendants(matching: .any)["sidebar.newTab"]
+        XCTAssertLessThan(sidebarTab("Pin One").frame.maxY, newTab.frame.minY, "both stay pinned, above New Tab")
+    }
+
+    /// A click on the Space's name folds the pinned tabs away (the one you're on stays); another click shows them.
+    func testClickingTheSpaceNameFoldsPinnedTabs() {
+        openViaCommandBar("data:text/html,<title>Pinned Page</title>")
+        XCTAssertTrue(sidebarTab("Pinned Page").waitForExistence(timeout: 15))
+        app.typeKey("d", modifierFlags: .command)
+        openViaCommandBar("data:text/html,<title>Today Page</title>")
+        XCTAssertTrue(sidebarTab("Today Page").waitForExistence(timeout: 15))
+        // Every Space's page is laid out side by side (for swiping): the header on screen is the hittable one.
+        let headers = app.descendants(matching: .any).matching(identifier: "sidebar.spaceHeader")
+        XCTAssertTrue(headers.firstMatch.waitForExistence(timeout: 5))
+        guard let header = headers.allElementsBoundByIndex.first(where: \.isHittable) else { return XCTFail("no visible Space header") }
+        header.click()
+        XCTAssertTrue(sidebarTab("Pinned Page").waitForNonExistence(timeout: 5), "pinned tabs didn't fold away")
+        XCTAssertTrue(sidebarTab("Today Page").exists)
+        header.click()
+        XCTAssertTrue(sidebarTab("Pinned Page").waitForExistence(timeout: 5), "pinned tabs didn't come back")
+    }
+
+    /// On one tab, ⌘T another, ⌘W: back on the tab you were on, not the tab next to the new one.
+    func testClosingATabReturnsToTheTabYouWereOn() {
+        for title in ["Tab A", "Tab B"] {
+            openViaCommandBar("data:text/html,<title>\(title)</title>")
+            XCTAssertTrue(sidebarTab(title).waitForExistence(timeout: 15))
+        }
+        sidebarTab("Tab A").click()  // on A; B sits between it and the next new tab
+        openViaCommandBar("data:text/html,<title>Tab C</title>")
+        XCTAssertTrue(sidebarTab("Tab C").waitForExistence(timeout: 15))
+        app.typeKey("w", modifierFlags: .command)
+        XCTAssertTrue(sidebarTab("Tab C").waitForNonExistence(timeout: 5))
+        app.typeKey("l", modifierFlags: .command)
+        let field = app.textFields["commandBar.field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let address = (field.value as? String)?.removingPercentEncoding ?? ""
+        XCTAssertTrue(address.contains("Tab A"), "⌘W went to \(address), not back to Tab A")
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    /// Change Icon…: an emoji takes the site icon's place in the sidebar.
+    func testChangeIconPutsAnEmojiOnTheTab() {
+        openViaCommandBar("data:text/html,<title>Icon Tab</title>")
+        let row = sidebarTab("Icon Tab")
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        app.typeKey("d", modifierFlags: .command)  // Change Icon is offered for pinned tabs and Favorites
+        row.rightClick()
+        app.menuItems["Change Icon…"].click()
+        let rocket = app.buttons["🚀"]
+        XCTAssertTrue(rocket.waitForExistence(timeout: 5), "no icon picker")
+        rocket.click()
+        XCTAssertTrue(rocket.waitForNonExistence(timeout: 5), "the picker closes")
+        // Reopened, it offers the site's icon back: the tab has the emoji now.
+        row.rightClick()
+        app.menuItems["Change Icon…"].click()
+        let reset = app.buttons["Use the Site's Icon"]
+        XCTAssertTrue(reset.waitForExistence(timeout: 5))
+        XCTAssertTrue(reset.isEnabled, "the tab didn't take the emoji")
+        reset.click()
+        row.rightClick()
+        app.menuItems["Change Icon…"].click()
+        XCTAssertFalse(app.buttons["Use the Site's Icon"].isEnabled, "back to the site's icon")
+        app.typeKey(.escape, modifierFlags: [])
+    }
 }
