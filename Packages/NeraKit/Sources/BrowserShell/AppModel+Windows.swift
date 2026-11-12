@@ -41,6 +41,8 @@ extension AppModel {
 
     /// Sends an action to the library, for this window (see `selection`).
     public func send(_ action: Action) {
+        // Then the pages learn which tabs this window shows now (Picture in Picture, memory).
+        defer { registerShownTabs() }
         guard let selection else { return store.send(action) }
         // Several windows share the library: act on this window's Space and tab, then keep where it lands.
         store.restoreSelection(spaceID: selection.spaceID, tabID: selection.tabID)
@@ -88,6 +90,8 @@ extension AppModel {
             main.selection = WindowSelection(spaceID: main.store.state.selectedSpaceID, tabID: main.store.state.selectedTabID)
         }
         let window = AppModel(sharing: main)
+        main.windowModels.removeAll { $0.model == nil }
+        main.windowModels.append(WindowModelRef(model: window))
         window.selection = WindowSelection(spaceID: main.state.selectedSpaceID, tabID: nil)
         window.isSidebarVisible = main.isSidebarVisible
         return window
@@ -110,31 +114,46 @@ extension AppModel {
         public var id = UUID()
         /// A blank window (⌃⌘N): no tab selected, no command bar.
         public var blank: Bool
+        /// A window open when Nera last quit, coming back.
+        public var restoring: SavedWindow?
 
         /// A request.
         public init(blank: Bool) { self.blank = blank }
+
+        /// A window coming back at launch.
+        public init(restoring window: SavedWindow) {
+            blank = false
+            restoring = window
+        }
     }
 
     /// A further browser window (⌘N): its own window model sharing the app's model, opened with the command bar.
     /// A blank one (⌃⌘N) opens on its start page instead. The first browser window shows the app's model itself.
     public struct BrowserWindowRoot: View {
         @State private var model: AppModel
-        let isBlank: Bool
+        let request: BrowserWindowRequest?
 
-        /// Creates a window sharing `main`; `blank`: no tab selected, no command bar.
-        public init(main: AppModel, blank: Bool = false) {
-            _model = State(initialValue: AppModel.window(sharing: main))
-            isBlank = blank
+        /// Creates a window sharing `main`, for `request` (nil: a new window with the command bar).
+        public init(main: AppModel, request: BrowserWindowRequest?) {
+            let model = AppModel.window(sharing: main)
+            if let saved = request?.restoring {
+                model.restore(saved)
+                model.pendingFrame = saved.rect
+            }
+            _model = State(initialValue: model)
+            self.request = request
         }
 
         /// The window.
         public var body: some View {
             RootView(model: model)
                 #if os(macOS)
-                    .background(MatchFrontWindowFrame(offset: CGSize(width: 26, height: -26)))
+                    // A restored window goes back where it was; a new one opens just off the window in front.
+                    .background(MatchFrontWindowFrame(offset: request?.restoring == nil ? CGSize(width: 26, height: -26) : nil))
                 #endif
                 .onAppear {
-                    if isBlank { model.send(.tab(.clearSelection)) } else { model.showCommandBar(.newTab) }
+                    if request?.restoring != nil { return }
+                    if request?.blank == true { model.send(.tab(.clearSelection)) } else { model.showCommandBar(.newTab) }
                 }
                 .onDisappear { model.windowClosed() }
         }

@@ -136,6 +136,9 @@ public final class PageManager {
     public internal(set) var fullscreenPageID: UUID?
     /// Tabs on screen in each browser window (PageManager+Windows.swift).
     @ObservationIgnored var shownTabs: [ObjectIdentifier: Set<UUID>] = [:]
+    /// Tabs left the screen (no window shows them any more) or came back to it. Called after the change, from
+    /// ``setShownTabs(_:by:)``.
+    @ObservationIgnored public var visibilityChanged: (_ hidden: Set<UUID>, _ shown: Set<UUID>) -> Void = { _, _ in }
     /// Pages shown outside the tab list (Peek, Little Windows): never discarded to save memory while shown.
     @ObservationIgnored public var keptPageIDs: Set<UUID> = []
     /// The engine each page runs in, and the profile it was made for (to move a page when a site needs the other
@@ -242,6 +245,7 @@ public final class PageManager {
             id: tab.id, storage: storage ?? defaultStorage ?? .persistent(profile.id), policy: pagePolicy)
         let page = engine.makePage(configuration, delegate: self)
         page.setDevToolsEnabled(devToolsEnabled)
+        if tab.isMuted { page.setMuted(true) }  // muted tabs stay muted
         pages[tab.id] = page
         scopes[tab.id] = configuration.storage
         pageEngines[tab.id] = engine.descriptor.id

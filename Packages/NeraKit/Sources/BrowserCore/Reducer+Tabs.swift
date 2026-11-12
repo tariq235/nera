@@ -21,12 +21,21 @@ extension Reducer {
         case .didUpdate(let id, let url, let title): didUpdate(&state, id, url: url, title: title)
         case .addToFavorites(let id): addToFavorites(&state, id)
         case .move(let id, let section, let index): move(&state, id, section: section, index: index)
-        case .rename(let id, let title): rename(&state, id, title: title)
         case .duplicate(let id): duplicate(&state, id, env)
         case .moveToSpace(let id, let spaceID): moveToSpace(&state, id, spaceID: spaceID, env)
         case .undoClose: undoClose(&state, env)
+        case .rename, .setIcon, .setMuted, .makeCurrentPageHome: reduceTabDetails(&state, action)
+        }
+    }
+
+    /// A tab's own name, icon, sound and pinned page.
+    private static func reduceTabDetails(_ state: inout BrowserState, _ action: TabAction) -> [Effect] {
+        switch action {
+        case .rename(let id, let title): rename(&state, id, title: title)
         case .setIcon(let id, let emoji): setIcon(&state, id, emoji: emoji)
+        case .setMuted(let id, let muted): setMuted(&state, id, muted)
         case .makeCurrentPageHome(let id): makeCurrentPageHome(&state, id)
+        default: []
         }
     }
 
@@ -46,6 +55,11 @@ extension Reducer {
         case .splitBesideCopy(let id, let source): splitBesideCopy(&state, id, of: source, env)
         default: []
         }
+    }
+
+    private static func setMuted(_ state: inout BrowserState, _ id: UUID, _ muted: Bool) -> [Effect] {
+        mutateTab(&state, id) { $0.isMuted = muted }
+        return []
     }
 
     private static func setIcon(_ state: inout BrowserState, _ id: UUID, emoji: String?) -> [Effect] {

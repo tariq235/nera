@@ -89,6 +89,10 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
                 path:(NSString *)path;
 - (void)chromiumPage:(NRAChromiumPage *)page findMatches:(int)count active:(int)active isFinal:(BOOL)isFinal;
 - (void)chromiumPage:(NRAChromiumPage *)page processTerminated:(NRATermination)reason;
+/// A frame's media watcher found it started or stopped playing sound.
+- (void)chromiumPage:(NRAChromiumPage *)page frame:(NSString *)frameID audible:(BOOL)audible;
+/// A frame went away (removed, or replaced by a navigation): forget what it reported.
+- (void)chromiumPage:(NRAChromiumPage *)page frameDetached:(NSString *)frameID;
 @end
 
 /// One browser (Alloy style, child of `view`). Created synchronously, so every method works at once.
@@ -127,6 +131,9 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
 /// Runs one of Nera's scripts in the top frame (through the renderer helper) and calls back on the main thread
 /// with its result as a string (objects as JSON), or nil if it failed.
 - (void)evaluate:(NSString *)script completion:(void (^)(NSString *_Nullable result))completion;
+/// Runs one of Nera's scripts in the top frame as if the user had just clicked the page (through Chromium's
+/// in-process DevTools API), awaiting a promise it returns. Calls back on the main thread with a string result, or nil.
+- (void)evaluateAsUserGesture:(NSString *)script completion:(void (^)(NSString *_Nullable result))completion;
 /// Opens the Mac's print panel for the page.
 - (void)print;
 /// The page as PNG through Chromium's in-process DevTools API (no debugging port): what's on screen when

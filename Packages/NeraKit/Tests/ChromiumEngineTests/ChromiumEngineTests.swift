@@ -218,6 +218,20 @@ struct ChromiumAdapterTests {
         #expect(page.state.zoom == 1.5 && page.state.isMuted)
     }
 
+    @Test func framesPlayingSoundMakeThePageAudible() async {
+        let (page, handle) = makePage()
+        handle.events?.mediaAudible(true, frame: "top")
+        handle.events?.mediaAudible(true, frame: "embed")
+        handle.events?.mediaAudible(false, frame: "top")
+        #expect(page.state.isAudible, "the embedded player still plays")
+        handle.events?.frameDetached("embed")
+        #expect(!page.state.isAudible, "its frame went away")
+        handle.events?.mediaAudible(true, frame: "top")
+        handle.events?.processTerminated(.crashed)
+        #expect(!page.state.isAudible, "a crashed page plays nothing")
+        #expect(await page.evaluateAsUserGesture("1") == "entered" && handle.gestureScripts == ["1"])
+    }
+
     @Test func rendererTerminationIsMapped() {
         let (_, handle) = makePage()
         handle.events?.processTerminated(.crashed)
@@ -334,9 +348,14 @@ final class FakeHandle: ChromiumPageHandle {
     func showDevTools() { devToolsShown += 1 }
     func close() { closed = true }
     var scripts: [String] = []
+    var gestureScripts: [String] = []
     func evaluate(_ script: String) async -> String? {
         scripts.append(script)
         return "ok"
+    }
+    func evaluateAsUserGesture(_ script: String) async -> String? {
+        gestureScripts.append(script)
+        return "entered"
     }
     private(set) var printed = 0
     func printPage() { printed += 1 }

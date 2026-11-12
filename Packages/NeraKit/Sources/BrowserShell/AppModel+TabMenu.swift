@@ -14,8 +14,10 @@ extension AppModel {
 
     /// Mutes or unmutes the tab's page.
     public func toggleMute(_ tabID: UUID) {
-        guard let page = pages.existingPage(for: tabID) else { return }
-        page.setMuted(!page.state.isMuted)
+        let page = pages.existingPage(for: tabID)
+        let muted = !(page?.state.isMuted ?? state.tab(withID: tabID)?.isMuted ?? false)
+        page?.setMuted(muted)
+        send(.tab(.setMuted(tabID, muted)))
     }
 
     /// Selects the tab and opens Customize Page (the site's fonts and colors).

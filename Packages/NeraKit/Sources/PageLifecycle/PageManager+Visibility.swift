@@ -8,7 +8,10 @@ extension PageManager {
     /// Records which tabs a browser window shows (its selected tab and Split View panes; an empty set when it
     /// closes). A page shown in any window is never evicted or suspended.
     public func setShownTabs(_ ids: Set<UUID>, by window: ObjectIdentifier) {
+        let before = visibleTabIDs
         shownTabs[window] = ids.isEmpty ? nil : ids
+        let after = visibleTabIDs
+        if before != after { visibilityChanged(before.subtracting(after), after.subtracting(before)) }
     }
 
     /// Tabs on screen in any window.

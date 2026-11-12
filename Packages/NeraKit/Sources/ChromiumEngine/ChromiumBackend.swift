@@ -64,6 +64,9 @@ public protocol ChromiumPageHandle: AnyObject {
     func showDevTools()
     /// Runs one of Nera's scripts in the top frame; the result as a string (objects as JSON), `nil` on failure.
     func evaluate(_ script: String) async -> String?
+    /// Runs one of Nera's scripts as if the user had just clicked the page, awaiting a promise it returns; the
+    /// result as a string, `nil` on failure.
+    func evaluateAsUserGesture(_ script: String) async -> String?
     /// Opens the Mac's print panel for the page.
     func printPage()
     /// The page as PNG: on screen when `width` or `height` is 0, else the top-left `width` × `height` CSS pixels at
@@ -216,4 +219,8 @@ public protocol ChromiumPageEvents: AnyObject {
     func findMatches(_ count: Int, active: Int, isFinal: Bool)
     /// The renderer process ended.
     func processTerminated(_ reason: ChromiumTermination)
+    /// A frame's media watcher (``MediaWatch``) found it started or stopped playing sound.
+    func mediaAudible(_ audible: Bool, frame: String)
+    /// A frame went away: forget what it reported.
+    func frameDetached(_ frame: String)
 }

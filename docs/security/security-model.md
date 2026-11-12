@@ -99,6 +99,19 @@ other engine. The site's cookies (its registrable domain only) are copied betwee
 same profile or private session**; nothing crosses profiles, nothing leaves the Mac, and private-session cookies
 stay in memory. Popups never move, so they keep their opener.
 
+## Nera's scripts in pages
+
+Nera runs a few scripts of its own in pages; none sends anything off the Mac.
+
+- **Media watcher** (`MediaWatch`, every frame, before the page's scripts): tells Nera whether the frame plays
+  sound, for the tab's speaker, Mute, the mini player and Picture in Picture. In WebKit it runs in Nera's isolated
+  script world; in Chromium the renderer helper installs it (`Apps/macOS/ChromiumHelper/media_watch.h`) with a
+  private `report` function only the watcher's closure holds. Its only output is "playing sound: yes/no", which
+  changes nothing but that tab's own state, so a page faking it can only mislabel itself.
+- **Picture in Picture** (when you leave a tab playing a video with sound): floats the page's largest such video,
+  run as a click; coming back puts it back. Off in Settings › General.
+- **Passkeys** ([passkeys.md](passkeys.md)), **SiteStyles** and the **mini player** (play/pause).
+
 ## Security roadmap
 
 Open P0 rows are tracked in checklist 000. Before public beta: an external security review (TM-007). After 1.0: a public bug bounty and yearly audits.

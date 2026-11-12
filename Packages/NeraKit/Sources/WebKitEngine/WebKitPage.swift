@@ -24,12 +24,15 @@ final class WebKitPage: NSObject, WebPage {
     @ObservationIgnored private var pendingUserURL: URL?
     /// A main-frame navigation is between "started" and "committed".
     @ObservationIgnored private var provisionalInFlight = false
-    @ObservationIgnored private var isClosed = false
+    @ObservationIgnored private(set) var isClosed = false
     @ObservationIgnored private var downloadIDs: [ObjectIdentifier: UUID] = [:]
     @ObservationIgnored private var downloadDestinations: [UUID: URL] = [:]
     @ObservationIgnored private var downloadObservations: [UUID: NSKeyValueObservation] = [:]
     @ObservationIgnored private var downloadObjects: [UUID: WKDownload] = [:]
     @ObservationIgnored private var cancelledDownloads: Set<UUID> = []
+    /// Frames playing sound, and each frame that reported (to mute it): WebKitPage+Sound.swift.
+    @ObservationIgnored var mediaFrames = MediaWatch.Frames()
+    @ObservationIgnored var mediaFrameInfos: [String: WKFrameInfo] = [:]
 
     var view: PlatformView { webView }
 
@@ -79,10 +82,6 @@ final class WebKitPage: NSObject, WebPage {
         update { $0.zoom = factor }
     }
 
-    func setMuted(_ muted: Bool) {
-        // No public WebKit API for muting a page; `audioControl` isn't declared.
-    }
-
     func find(_ text: String, options: FindOptions) async -> FindResult {
         let config = WKFindConfiguration()
         config.backwards = options.backwards
@@ -112,6 +111,8 @@ final class WebKitPage: NSObject, WebPage {
         guard !isClosed else { return }
         isClosed = true
         silenceMedia()
+        webView.configuration.userContentController.removeScriptMessageHandler(
+            forName: Self.mediaHandlerName, contentWorld: .defaultClient)
         webView.stopLoading()
         webView.navigationDelegate = nil
         webView.uiDelegate = nil
@@ -133,7 +134,7 @@ final class WebKitPage: NSObject, WebPage {
         }
     }
 
-    private func update(_ mutate: (inout PageState) -> Void) {
+    func update(_ mutate: (inout PageState) -> Void) {
         var next = state
         mutate(&next)
         guard next != state else { return }
@@ -249,13 +250,6 @@ final class WebKitPage: NSObject, WebPage {
 
     func showDevTools() -> Bool { false }  // no public API to open Web Inspector; the context menu does
 
-    func evaluate(_ script: String) async -> String? {
-        // Wrapped so every result comes back as a string (JSON for objects), like Chromium's bridge.
-        let wrapped = "(() => { const v = (\(script)); return typeof v === 'string' ? v : JSON.stringify(v ?? null); })()"
-        let result = try? await webView.evaluateJavaScript(wrapped)
-        return result as? String
-    }
-
     func cancelDownload(_ id: UUID) {
         guard let download = downloadObjects[id] else { return }
         cancelledDownloads.insert(id)
@@ -370,6 +364,7 @@ extension WebKitPage: WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         provisionalInFlight = false
+        resetMediaFrames()
         update {
             if $0.url?.host() != webView.url?.host() { $0.favicon = nil }  // another site: its own icon
             $0.url = webView.url

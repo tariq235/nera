@@ -82,8 +82,10 @@ struct MiniPlayer: View {
                     control(isPlaying ? "pause.fill" : "play.fill", help: isPlaying ? "Pause" : "Play") { model.toggleMedia(tab) }
                         .accessibilityIdentifier("miniPlayer.playPause")
                     let muted = page.state.isMuted
-                    control(muted ? "speaker.slash.fill" : "speaker.wave.2.fill", help: muted ? "Unmute" : "Mute") { page.setMuted(!muted) }
-                        .accessibilityIdentifier("miniPlayer.mute")
+                    control(muted ? "speaker.slash.fill" : "speaker.wave.2.fill", help: muted ? "Unmute" : "Mute") {
+                        model.toggleMute(tab.id)
+                    }
+                    .accessibilityIdentifier("miniPlayer.mute")
                     if !isPlaying {
                         control("xmark", help: "Close") { model.dismissMedia() }
                     }

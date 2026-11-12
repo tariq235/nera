@@ -51,7 +51,9 @@ struct NeraApp: App {
                 .onOpenURL { model.openFromOutside($0) }  // links from other apps and Finder (default browser)
                 #if os(macOS)
                     .frame(minWidth: 820, minHeight: 520)
+                    .restoringWindows(model)  // the browser windows open at the last quit come back
                     .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
+                        model.saveWindowsForRelaunch()
                         model.store.flush()
                         LaunchSafety.launchSucceeded()
                         model.installPendingUpdateOnQuit()  // a verified, staged update takes this version's place
@@ -70,7 +72,7 @@ struct NeraApp: App {
         #if os(macOS)
             // ⌘N: more browser windows. They share the library, each with its own Space and tab (ADR-0013).
             WindowGroup("Browser Window", id: AppModel.browserWindowID, for: BrowserWindowRequest.self) { $request in
-                BrowserWindowRoot(main: model, blank: request?.blank ?? false)
+                BrowserWindowRoot(main: model, request: request)
                     .frame(minWidth: 820, minHeight: 520)
             }
             .handlesExternalEvents(matching: [])  // links from other apps go to the main window
