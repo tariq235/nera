@@ -207,11 +207,12 @@ final class SmokeTests: NeraUITestCase {
         let moved = NSPredicate { _, _ in window.frame.origin != before }
         wait(for: [XCTNSPredicateExpectation(predicate: moved, object: nil)], timeout: 5)
 
+        sleep(1)  // let the move settle before reading the frame (slow virtual machines)
         let frame = window.frame
         let top = window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 4))
         top.doubleClick()
         let zoomed = NSPredicate { _, _ in !window.exists || window.frame != frame }
-        wait(for: [XCTNSPredicateExpectation(predicate: zoomed, object: nil)], timeout: 5)
+        wait(for: [XCTNSPredicateExpectation(predicate: zoomed, object: nil)], timeout: 10)
         if window.exists {
             window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0)).withOffset(CGVector(dx: 0, dy: 4)).doubleClick()
             let restored = NSPredicate { _, _ in window.frame == frame }

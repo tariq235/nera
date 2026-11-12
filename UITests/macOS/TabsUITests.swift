@@ -71,11 +71,15 @@ final class TabsUITests: NeraUITestCase {
         XCTAssertTrue(sidebarTab("Closed One").waitForExistence(timeout: 15))
         app.typeKey("w", modifierFlags: .command)
         XCTAssertTrue(sidebarTab("Closed One").waitForNonExistence(timeout: 5))
-        openViaCommandBar("data:text/html,<title>Form</title><input id=f autofocus style='width:90vw;height:60vh;font-size:40px'>")
+        // The page names itself after what's typed into it, so the test knows the typing reached the field.
+        openViaCommandBar(
+            "data:text/html,<title>Form</title><input id=f autofocus oninput=\"document.title='Typed '+this.value\" "
+                + "style='width:90vw;height:60vh;font-size:40px'>")
         XCTAssertTrue(sidebarTab("Form").waitForExistence(timeout: 15))
         let window = app.windows.firstMatch
         window.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.4)).click()
         app.typeText("hello")
+        XCTAssertTrue(sidebarTab("Typed hello").waitForExistence(timeout: 5), "the typing didn't reach the page's field")
         app.typeKey("z", modifierFlags: .command)
         sleep(2)
         XCTAssertFalse(sidebarTab("Closed One").exists, "⌘Z in a page's field reopened a closed tab")
@@ -145,6 +149,8 @@ final class TabsUITests: NeraUITestCase {
         app.menuItems["Change Icon…"].click()
         let rocket = app.buttons["🚀"]
         XCTAssertTrue(rocket.waitForExistence(timeout: 5), "no icon picker")
+        let ready = NSPredicate { _, _ in rocket.isHittable }  // the popover finishes appearing
+        wait(for: [XCTNSPredicateExpectation(predicate: ready, object: nil)], timeout: 5)
         rocket.click()
         XCTAssertTrue(rocket.waitForNonExistence(timeout: 5), "the picker closes")
         // Reopened, it offers the site's icon back: the tab has the emoji now.

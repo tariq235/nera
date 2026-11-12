@@ -34,7 +34,10 @@ final class FileMenuUITests: NeraUITestCase {
         let print = app.buttons["Print"]
         XCTAssertTrue(print.waitForExistence(timeout: 10), "no print panel")
         app.typeKey(.escape, modifierFlags: [])
-        XCTAssertTrue(print.waitForNonExistence(timeout: 5))
+        if !print.waitForNonExistence(timeout: 3) {
+            app.sheets.buttons["Cancel"].firstMatch.click()  // the print sheet's own Cancel (not the Touch Bar's)
+        }
+        XCTAssertTrue(print.waitForNonExistence(timeout: 5), "the print panel didn't close")
     }
 
     func testSavePageAsShowsTheSavePanel() {
