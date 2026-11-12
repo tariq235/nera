@@ -7,6 +7,14 @@ import XCTest
 /// user data, and helpers.
 @MainActor
 class NeraUITestCase: XCTestCase {
+    /// GitHub's runners are virtual Macs: some system panels (print) behave differently there.
+    static var isVirtualMachine: Bool {
+        var value: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        sysctlbyname("kern.hv_vmm_present", &value, &size, nil, 0)
+        return value == 1
+    }
+
     var app = XCUIApplication()
 
     override func setUp() async throws {

@@ -28,14 +28,17 @@ final class FileMenuUITests: NeraUITestCase {
         sleep(1)
     }
 
-    func testPrintShowsThePrintPanel() {
+    /// ⌘P opens the print panel (on a physical Mac: a virtual Mac's print system doesn't close the panel on Cancel,
+    /// and a panel left open would cover the windows the next tests click in).
+    func testPrintShowsThePrintPanel() throws {
+        try XCTSkipIf(Self.isVirtualMachine, "print panels on virtual Macs don't close; checked on physical Macs")
         openTallPage()
         app.typeKey("p", modifierFlags: .command)
         let print = app.buttons["Print"]
         XCTAssertTrue(print.waitForExistence(timeout: 10), "no print panel")
         app.typeKey(.escape, modifierFlags: [])
         if !print.waitForNonExistence(timeout: 3) {
-            app.sheets.buttons["Cancel"].firstMatch.click()  // the print sheet's own Cancel (not the Touch Bar's)
+            app.buttons.matching(identifier: "Cancel").allElementsBoundByIndex.first(where: \.isHittable)?.click()
         }
         XCTAssertTrue(print.waitForNonExistence(timeout: 5), "the print panel didn't close")
     }
