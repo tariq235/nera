@@ -83,6 +83,8 @@ final class ChromiumPage: WebPage {
     @ObservationIgnored private var handle: (any ChromiumPageHandle)!
     @ObservationIgnored private var isClosed = false
     @ObservationIgnored private var downloads: [UInt32: UUID] = [:]
+    /// Frames playing sound (the page is audible while any is).
+    @ObservationIgnored private var mediaFrames = MediaWatch.Frames()
     @ObservationIgnored private var findContinuation: CheckedContinuation<FindResult, Never>?
     /// The text of the current find session: the same text again moves to the next match.
     @ObservationIgnored private var findText: String?
@@ -166,6 +168,11 @@ final class ChromiumPage: WebPage {
     func evaluate(_ script: String) async -> String? {
         guard !isClosed else { return nil }
         return await handle.evaluate(script)
+    }
+
+    func evaluateAsUserGesture(_ script: String) async -> String? {
+        guard !isClosed else { return nil }
+        return await handle.evaluateAsUserGesture(script)
     }
 
     func printPage() {
@@ -425,6 +432,15 @@ extension ChromiumPage: ChromiumPageEvents {
             case .killed, .other: .unknown
             }
         emit(.processTerminated(mapped))
+        if mediaFrames.reset() { update { $0.isAudible = false } }
+    }
+
+    func mediaAudible(_ audible: Bool, frame: String) {
+        if mediaFrames.report(frame: frame, audible: audible) { update { $0.isAudible = mediaFrames.isAudible } }
+    }
+
+    func frameDetached(_ frame: String) {
+        if mediaFrames.remove(frame: frame) { update { $0.isAudible = mediaFrames.isAudible } }
     }
 }
 

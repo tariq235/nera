@@ -1,6 +1,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was
 // not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import AppKit
 import BrowserCore
 import EngineKit
 import EngineTestSupport
@@ -176,6 +177,43 @@ struct BrowsingFeaturesTests {
         #expect(page.evaluatedScripts.last == MediaScript.toggle)
         m.dismissMedia()
         #expect(m.mediaTab == nil)
+    }
+
+    @Test func aVideoPopsOutWhenItsTabIsLeftAndGoesBackOnReturn() async throws {
+        let m = model()
+        let (video, page) = try pinnedTab(m, "https://video.example")
+        page.evaluateResult = { $0 == PictureInPictureScript.enter ? "entered" : "exited" }
+        m.send(.tab(.open(URL(string: "https://quiet.example")!, .newTab)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(page.gestureScripts.isEmpty, "a page without sound isn't asked")
+        m.send(.tab(.select(video.id)))
+        page.simulateState { $0.isAudible = true }
+        m.send(.tab(.open(URL(string: "https://news.example")!, .newTab)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(page.gestureScripts == [PictureInPictureScript.enter], "leaving floats the video, as a click")
+        #expect(m.pictureInPictureTabs == [video.id])
+        m.send(.tab(.select(video.id)))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(page.gestureScripts.count == 1, "the video goes back only into a page on screen")
+        let window = NSWindow()
+        window.contentView?.addSubview(page.view)  // the window shows the page
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(page.gestureScripts.last == PictureInPictureScript.exit, "coming back puts it back")
+        #expect(m.pictureInPictureTabs.isEmpty)
+        m.send(.library(.setAutoPictureInPicture(false)))
+        m.send(.tab(.open(URL(string: "https://other.example")!, .newTab)))
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(page.gestureScripts.count == 2, "turned off in Settings")
+    }
+
+    @Test func muteIsRememberedForTheTab() throws {
+        let m = model()
+        let (tab, page) = try pinnedTab(m, "https://music.example")
+        m.toggleMute(tab.id)
+        #expect(page.state.isMuted && m.state.tab(withID: tab.id)?.isMuted == true)
+        #expect(m.audio(of: tab.id).muted)
+        m.toggleMute(tab.id)
+        #expect(!page.state.isMuted && m.state.tab(withID: tab.id)?.isMuted == false)
     }
 
     @Test func siteStylesRestyleEveryPageOfTheirSite() async throws {

@@ -149,6 +149,7 @@
                     .first { $0.id != model.state.selectedTabID && model.pages.existingPage(for: $0.id) != nil }
                 model.pausedMediaTabID = other?.id
             }
+            if shot == "pip" { await pictureInPictureCheck(model) }
             if shot == "little" {
                 if let blog = URL(string: "https://www.swift.org/blog/") { model.openLittleWindow(blog) }
                 try? await Task.sleep(for: .seconds(6))

@@ -385,6 +385,8 @@ public struct Settings: Codable, Hashable, Sendable {
     public var linkRoutes: [LinkRoute] = []
     /// Links that a Favorite or pinned tab opens in a new tab show in Peek instead.
     public var peekLinks = true
+    /// A video playing with sound moves to a floating window (Picture in Picture) when you switch away from its tab.
+    public var autoPictureInPicture = true
     /// Light or dark: the Mac's setting by default.
     public var appearance = AppearanceChoice.system
 
@@ -393,6 +395,7 @@ public struct Settings: Codable, Hashable, Sendable {
         case isDeveloperToolsEnabled = "developerTools"
         case hasCompletedOnboarding = "onboarded"
         case externalLinks, linkRoutes, peekLinks, appearance
+        case autoPictureInPicture = "autoPiP"
     }
 
     /// Decodes settings; fields added after 0.1 default when missing.
@@ -406,6 +409,7 @@ public struct Settings: Codable, Hashable, Sendable {
         externalLinks = (try? c.decodeIfPresent(ExternalLinkTarget.self, forKey: .externalLinks)) ?? .littleWindow
         linkRoutes = (try? c.decodeIfPresent([LinkRoute].self, forKey: .linkRoutes)) ?? []
         peekLinks = try c.decodeIfPresent(Bool.self, forKey: .peekLinks) ?? true
+        autoPictureInPicture = try c.decodeIfPresent(Bool.self, forKey: .autoPictureInPicture) ?? true
         appearance = (try? c.decodeIfPresent(AppearanceChoice.self, forKey: .appearance)) ?? .system
     }
 

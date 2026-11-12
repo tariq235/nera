@@ -90,6 +90,8 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var pendingLittleWindow: UUID?
     /// A background tab the user paused from the mini player (it stays there to be resumed).
     public var pausedMediaTabID: UUID?
+    /// Tabs whose video Nera floated out when you left them (AppModel+PictureInPicture.swift).
+    @ObservationIgnored var pictureInPictureTabs: Set<UUID> = []
     /// Clear Browsing Data is showing.
     public var isClearDataPresented = false
     /// The Space being edited in the Edit Space sheet.
@@ -134,6 +136,14 @@ public final class AppModel: SidebarHost, CommandBarHost {
     @ObservationIgnored var safetyBox = SafetyBox()
     /// This window's Space and tab when several browser windows share the library (ADR-0013); nil: the library's.
     var selection: WindowSelection?
+    /// The first window's model: the further browser windows' models (WindowRestore.swift).
+    @ObservationIgnored var windowModels: [WindowModelRef] = []
+    /// Where this window goes when it opens (a window restored at launch).
+    @ObservationIgnored var pendingFrame: CGRect?
+    #if os(macOS)
+        /// The window showing this model (WindowTracker).
+        @ObservationIgnored weak var hostWindow: NSWindow?
+    #endif
     /// Started in safe mode after repeated failed launches (SEC-054).
     public private(set) var isSafeMode = false
 
@@ -208,6 +218,7 @@ public final class AppModel: SidebarHost, CommandBarHost {
         }
         pages.peekRule = { [weak self] tabID, url in self?.linkOpensInPeek(from: tabID, to: url) ?? false }
         pages.openInPeek = { [weak self] opener, url in self?.openInPeek(url, from: opener) }
+        pages.visibilityChanged = { [weak self] hidden, shown in self?.tabsVisibilityChanged(hidden: hidden, shown: shown) }
         startBackgroundSweeps()
     }
 

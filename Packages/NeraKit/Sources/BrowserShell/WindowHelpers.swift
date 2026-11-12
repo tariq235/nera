@@ -63,6 +63,40 @@
 #endif
 
 #if os(macOS)
+    /// Tells a window's model which window shows it (to keep it for the next launch), and moves a window restored at
+    /// launch back where it was, if that's still on a screen.
+    struct WindowTracker: NSViewRepresentable {
+        let model: AppModel
+
+        func makeNSView(context: Context) -> Tracker {
+            let view = Tracker()
+            view.model = model
+            return view
+        }
+
+        func updateNSView(_ view: Tracker, context: Context) {}
+
+        final class Tracker: NSView {
+            weak var model: AppModel?
+
+            override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+            override func viewDidMoveToWindow() {
+                super.viewDidMoveToWindow()
+                guard let window, let model else { return }
+                model.hostWindow = window
+                guard let frame = model.pendingFrame else { return }
+                model.pendingFrame = nil
+                guard NSScreen.screens.contains(where: { $0.visibleFrame.intersects(frame) }) else { return }
+                window.setFrame(frame, display: true)
+                // AppKit staggers new windows as it shows them: put it back once it's shown.
+                DispatchQueue.main.async { window.setFrame(frame, display: true) }
+            }
+        }
+    }
+#endif
+
+#if os(macOS)
     /// Puts the window in macOS full screen while a page shows HTML full screen, and back afterwards (only if it put
     /// it there: a window that was already full screen stays so). Leaving full screen another way (the green button,
     /// Mission Control) ends the page's full screen too, through `exitPage`.

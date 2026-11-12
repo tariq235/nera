@@ -173,6 +173,9 @@ final class CEFPage: NSObject, ChromiumPageHandle {
     func evaluate(_ script: String) async -> String? {
         await withCheckedContinuation { done in bridge.evaluate(script) { done.resume(returning: $0) } }
     }
+    func evaluateAsUserGesture(_ script: String) async -> String? {
+        await withCheckedContinuation { done in bridge.evaluate(asUserGesture: script) { done.resume(returning: $0) } }
+    }
     func printPage() { bridge.print() }
     func capturePNG(width: Double, height: Double, scale: Double) async -> Data? {
         await withCheckedContinuation { done in
@@ -285,5 +288,13 @@ extension CEFPage: @preconcurrency NRAChromiumPageDelegate {
             default: .other
             }
         events?.processTerminated(mapped)
+    }
+
+    func chromiumPage(_ page: NRAChromiumPage, frame frameID: String, audible: Bool) {
+        events?.mediaAudible(audible, frame: frameID)
+    }
+
+    func chromiumPage(_ page: NRAChromiumPage, frameDetached frameID: String) {
+        events?.frameDetached(frameID)
     }
 }

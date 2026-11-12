@@ -17,10 +17,16 @@ class NeraUITestCase: XCTestCase {
 
     var app = XCUIApplication()
 
+    /// More environment for Nera, set by a test class before launch.
+    var launchEnvironment: [String: String] { [:] }
+
     override func setUp() async throws {
-        continueAfterFailure = false
+        // Stopping at the first failure starts once Nera runs: a failed first launch that's retried must not stop
+        // the test (XCTest would skip its body and still count it as passed).
+        continueAfterFailure = true
         app = XCUIApplication()
         app.launchEnvironment["NERA_UI_TEST"] = "1"
+        app.launchEnvironment.merge(launchEnvironment) { _, new in new }
         // On CI virtual machines the first launch occasionally fails ("does not have a process ID"); one retry.
         let options = XCTExpectedFailure.Options()
         options.isStrict = false
@@ -28,6 +34,8 @@ class NeraUITestCase: XCTestCase {
         if app.state != .runningForeground {
             app.launch()
         }
+        XCTAssertEqual(app.state, .runningForeground, "Nera didn't launch")
+        continueAfterFailure = false
     }
 
     override func tearDown() async throws {

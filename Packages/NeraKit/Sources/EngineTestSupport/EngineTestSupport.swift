@@ -141,6 +141,14 @@ public final class FakePage: WebPage {
         return evaluateResult(script)
     }
 
+    /// Scripts run with ``evaluateAsUserGesture(_:)``, in order.
+    public var gestureScripts: [String] = []
+    /// Records the script and answers with ``evaluateResult``.
+    public func evaluateAsUserGesture(_ script: String) async -> String? {
+        gestureScripts.append(script)
+        return evaluateResult(script)
+    }
+
     /// Changes state and notifies the delegate.
     public func simulateState(_ change: (inout PageState) -> Void) {
         change(&state)

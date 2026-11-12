@@ -50,6 +50,7 @@ extension Reducer {
         case .bookmarks(let profileID, let action): return reduceBookmarks(&state, profileID, action, env)
         case .setSiteZoom(let profileID, let host, let factor): return setSiteZoom(&state, profileID, host: host, factor: factor)
         case .setDeveloperTools, .setSearchEngine, .setArchiveAfter, .setExternalLinks, .addLinkRoute, .removeLinkRoute, .setPeekLinks,
+            .setAutoPictureInPicture,
             .setAppearance,
             .setSiteStyle, .setSiteEngine:
             return reduceSettings(&state, action, env)
@@ -164,6 +165,8 @@ extension Reducer {
             state.settings.linkRoutes.removeAll { $0.id == id }
         case .setPeekLinks(let on):
             state.settings.peekLinks = on
+        case .setAutoPictureInPicture(let on):
+            state.settings.autoPictureInPicture = on
         case .setAppearance(let choice):
             state.settings.appearance = choice
         case .setSiteEngine(let profileID, let site, let engine):

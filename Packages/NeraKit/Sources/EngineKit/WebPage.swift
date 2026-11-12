@@ -80,6 +80,11 @@ public protocol WebPage: AnyObject, Observable {
     /// Used by SiteStyles, the mini player and password setup; scripts must not assume they run in an isolated world.
     func evaluate(_ script: String) async -> String?
 
+    /// Like ``evaluate(_:)``, but the script runs as if the user had just clicked the page, so it may call what
+    /// the web allows only after a click (Picture in Picture), and a promise it returns is awaited. Only for Nera's
+    /// own scripts acting on the user's behalf (switching tabs).
+    func evaluateAsUserGesture(_ script: String) async -> String?
+
     /// Stops all activity and releases engine resources. The page sends no events afterwards.
     func close()
 }
@@ -182,6 +187,9 @@ public struct FindResult: Equatable, Sendable {
 extension WebPage {
     /// Engines without HTML full screen have nothing to end.
     public func exitFullscreen() {}
+
+    /// Engines that can't run a script as a click run it as a plain script.
+    public func evaluateAsUserGesture(_ script: String) async -> String? { await evaluate(script) }
 
     /// Engines without printing print nothing.
     public func printPage() {}

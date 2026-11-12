@@ -95,6 +95,17 @@ struct ReducerTests {
         #expect(h.state.tab(withID: a)?.homeURL == URL(string: "https://a.example/inbox"))
     }
 
+    /// Mute stays with the tab (its page applies it whenever it's made again).
+    @Test func tabsRememberBeingMuted() {
+        var h = Harness()
+        let a = h.open("https://a.example")
+        #expect(h.state.tab(withID: a)?.isMuted == false)
+        h.send(.tab(.setMuted(a, true)))
+        #expect(h.state.tab(withID: a)?.isMuted == true)
+        h.send(.tab(.setMuted(a, false)))
+        #expect(h.state.tab(withID: a)?.isMuted == false)
+    }
+
     /// Add Split View on a Favorite: its page and the new one side by side at the top of Today; the Favorite stays.
     @Test func aFavoriteCanStartASplitView() throws {
         var h = Harness()

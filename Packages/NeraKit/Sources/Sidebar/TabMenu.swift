@@ -113,6 +113,7 @@ struct FavoriteTile: View {
                 .surface(host.state.selectedTabID == tab.id ? .selected : .resting, cornerRadius: 11)
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .bottomTrailing) { TabSoundButton(host: host, tab: tab, isBadge: true).offset(x: -4, y: -4) }
         .help(tab.displayTitle)
         .contextMenu {
             TabMenu(
@@ -136,6 +137,7 @@ struct FavoriteTile: View {
                 isChangingIcon = false
             }
         }
+        .tabSoundAccessibility(host: host, tab: tab)
         .accessibilityIdentifier("sidebar.favorite")
     }
 

@@ -172,6 +172,20 @@ struct GeneralSettingsView: View {
             }
             Section {
                 Toggle(
+                    "Pop out videos when you switch tabs",
+                    isOn: Binding(
+                        get: { model.state.settings.autoPictureInPicture },
+                        set: { model.send(.library(.setAutoPictureInPicture($0))) })
+                )
+                .accessibilityIdentifier("general.autoPictureInPicture")
+            } header: {
+                Text("Videos")
+            } footer: {
+                Text("A video playing with sound keeps playing in a floating window when you leave its tab, and goes back when you return.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle(
                     "Let assistive apps read web pages",
                     isOn: Binding(get: { model.letsAssistiveAppsReadPages }, set: { model.letsAssistiveAppsReadPages = $0 })
                 )

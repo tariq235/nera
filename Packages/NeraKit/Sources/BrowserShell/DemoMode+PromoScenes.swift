@@ -32,7 +32,7 @@
                 try? await Task.sleep(for: .seconds(1.5))
             case "peeklink":  // a pinned tab on a site with links elsewhere (--webkit: in WebKit, as X is)
                 if CommandLine.arguments.contains("--webkit") { model.setEngine(.webKit, forSite: "wikipedia.org") }
-                model.send(.tab(.open(URL(string: "https://en.wikipedia.org/wiki/Aurora")!, .newTab)))
+                if let aurora = URL(string: "https://en.wikipedia.org/wiki/Aurora") { model.send(.tab(.open(aurora, .newTab))) }
                 if let id = model.state.selectedTabID {
                     // --favorite: as a Favorite (like X in the sidebar's top grid), else a pinned tab.
                     model.send(.tab(CommandLine.arguments.contains("--favorite") ? .addToFavorites(id) : .togglePin(id)))

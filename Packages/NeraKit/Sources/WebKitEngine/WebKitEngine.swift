@@ -37,7 +37,7 @@ public final class WebKitEngine: BrowserEngine {
         descriptor = EngineDescriptor(id: "webkit", displayName: "WebKit", version: version, isAvailable: true)
         var caps: EngineCapabilities = [
             .findInPage, .pageZoom, .mediaCaptureIndicators, .downloads, .javaScriptDialogs,
-            .httpAuthentication, .mediaPermissionRequests, .childPages,
+            .httpAuthentication, .mediaPermissionRequests, .childPages, .audioControl,
         ]
         #if os(macOS)
             caps.insert(.fileChooser)
@@ -59,12 +59,21 @@ public final class WebKitEngine: BrowserEngine {
         #endif
         #if os(macOS)
             config.preferences.isElementFullscreenEnabled = true
+            // Picture in Picture: public on iOS (`allowsPictureInPictureMediaPlayback`), a WebKit preference of the
+            // same name on the Mac, set only while WebKit still has it.
+            if config.preferences.responds(to: NSSelectorFromString("_setAllowsPictureInPictureMediaPlayback:")) {
+                config.preferences.setValue(true, forKey: "allowsPictureInPictureMediaPlayback")
+            }
         #else
             config.allowsInlineMediaPlayback = true
         #endif
-        return WebKitPage(
+        let media = MediaMessageProxy()
+        WebKitPage.installMediaWatch(in: config, handler: media)
+        let page = WebKitPage(
             id: configuration.id, storage: configuration.storage, configuration: config,
             policy: configuration.policy, delegate: delegate, engine: self)
+        media.page = page
+        return page
     }
 
     /// Deletes a scope's website data. Persistent stores are removed from disk.

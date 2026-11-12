@@ -205,6 +205,7 @@ class PageClient : public CefClient,
                    public CefKeyboardHandler,
                    public CefPermissionHandler,
                    public CefContextMenuHandler,
+                   public CefFrameHandler,
                    public CefLifeSpanHandler {
    public:
     PageClient(NRAChromiumPage *page, id<NRAChromiumPageDelegate> delegate) : page_(page), delegate_(delegate) {}
@@ -239,11 +240,20 @@ class PageClient : public CefClient,
     CefRefPtr<CefKeyboardHandler> GetKeyboardHandler() override { return this; }
     CefRefPtr<CefPermissionHandler> GetPermissionHandler() override { return this; }
     CefRefPtr<CefContextMenuHandler> GetContextMenuHandler() override { return this; }
+    CefRefPtr<CefFrameHandler> GetFrameHandler() override { return this; }
+
+    void OnFrameDetached(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame) override {
+        [delegate_ chromiumPage:page_ frameDetached:NS(frame->GetIdentifier())];
+    }
 
     /// WebAuthn requests from Nera's renderer shim. The origin comes from the frame (browser process), never
     /// from the page; Swift checks it and asks the system authenticator (docs/security/passkeys.md).
     bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId,
                                   CefRefPtr<CefProcessMessage> message) override {
+        if (message->GetName() == "nera.media") {  // the media watcher (media_watch.h); only touches this tab's state
+            if (frame) [delegate_ chromiumPage:page_ frame:NS(frame->GetIdentifier()) audible:message->GetArgumentList()->GetBool(0)];
+            return true;
+        }
         if (message->GetName() == "nera.eval.result") {
             CefRefPtr<CefListValue> result = message->GetArgumentList();
             NSString *value = result->GetBool(1) ? NS(result->GetString(2)) : nil;
@@ -532,36 +542,47 @@ void PageClient::OnFaviconURLChange(CefRefPtr<CefBrowser> browser, const std::ve
 @end
 
 /// Waits for one DevTools method's result (Page.captureScreenshot) and hands back the PNG it carries.
-class CaptureObserver : public CefDevToolsMessageObserver {
+/// One call into Chromium's in-process DevTools API (no debugging port): answers the method's result as a dictionary,
+/// or nil when it failed or never answered.
+class DevToolsCall : public CefDevToolsMessageObserver {
    public:
-    explicit CaptureObserver(void (^completion)(NSData *)) : completion_([completion copy]) {}
+    explicit DevToolsCall(void (^completion)(NSDictionary *)) : completion_([completion copy]) {}
     int messageID_ = 0;
     CefRefPtr<CefRegistration> registration_;
 
+    /// Sends `method` to `host`; gives up after `timeout` seconds.
+    static void Run(CefRefPtr<CefBrowserHost> host, const char *method, CefRefPtr<CefDictionaryValue> params, double timeout,
+                    void (^completion)(NSDictionary *)) {
+        CefRefPtr<DevToolsCall> call = new DevToolsCall(completion);
+        call->registration_ = host->AddDevToolsMessageObserver(call);
+        call->messageID_ = host->ExecuteDevToolsMethod(0, method, params);
+        if (call->messageID_ == 0) return call->Finish(nil);
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeout * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ call->Finish(nil); });
+    }
+
     void OnDevToolsMethodResult(CefRefPtr<CefBrowser>, int message_id, bool success, const void *result, size_t size) override {
         if (message_id != messageID_) return;
-        NSData *png = nil;
+        NSDictionary *answer = nil;
         if (success && result && size > 0) {
-            NSDictionary *answer = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:size] options:0 error:nil];
-            NSString *base64 = [answer isKindOfClass:NSDictionary.class] ? answer[@"data"] : nil;
-            if ([base64 isKindOfClass:NSString.class]) png = [[NSData alloc] initWithBase64EncodedString:base64 options:0];
+            id json = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:result length:size] options:0 error:nil];
+            if ([json isKindOfClass:NSDictionary.class]) answer = json;
         }
-        Finish(png);
+        Finish(answer);
     }
 
     /// Answers once; the registration is dropped afterwards, outside CEF's callback.
-    void Finish(NSData *png) {
+    void Finish(NSDictionary *answer) {
         if (!completion_) return;
-        void (^completion)(NSData *) = completion_;
+        void (^completion)(NSDictionary *) = completion_;
         completion_ = nil;
-        completion(png);
-        CefRefPtr<CaptureObserver> keep = this;
+        completion(answer);
+        CefRefPtr<DevToolsCall> keep = this;
         dispatch_async(dispatch_get_main_queue(), ^{ keep->registration_ = nullptr; });
     }
 
    private:
-    void (^completion_)(NSData *);
-    IMPLEMENT_REFCOUNTING(CaptureObserver);
+    void (^completion_)(NSDictionary *);
+    IMPLEMENT_REFCOUNTING(DevToolsCall);
 };
 
 @implementation NRAChromiumPage {
@@ -670,8 +691,6 @@ class CaptureObserver : public CefDevToolsMessageObserver {
              completion:(void (^)(NSData *_Nullable))completion {
     if (_closed || !_browser) return completion(nil);
     CefRefPtr<CefBrowserHost> host = _browser->GetHost();
-    CefRefPtr<CaptureObserver> observer = new CaptureObserver(completion);
-    observer->registration_ = host->AddDevToolsMessageObserver(observer);
     CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
     params->SetString("format", "png");
     if (width > 0 && height > 0) {
@@ -684,10 +703,27 @@ class CaptureObserver : public CefDevToolsMessageObserver {
         params->SetDictionary("clip", clip);
         params->SetBool("captureBeyondViewport", true);
     }
-    observer->messageID_ = host->ExecuteDevToolsMethod(0, "Page.captureScreenshot", params);
-    if (observer->messageID_ == 0) return observer->Finish(nil);
+    void (^done)(NSData *) = [completion copy];
     // A capture that never answers (the page went away) ends after 20 seconds.
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 20 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{ observer->Finish(nil); });
+    DevToolsCall::Run(host, "Page.captureScreenshot", params, 20, ^(NSDictionary *answer) {
+        NSString *base64 = answer[@"data"];
+        done([base64 isKindOfClass:NSString.class] ? [[NSData alloc] initWithBase64EncodedString:base64 options:0] : nil);
+    });
+}
+
+- (void)evaluateAsUserGesture:(NSString *)script completion:(void (^)(NSString *_Nullable))completion {
+    if (_closed || !_browser) return completion(nil);
+    CefRefPtr<CefDictionaryValue> params = CefDictionaryValue::Create();
+    params->SetString("expression", script.UTF8String);
+    params->SetBool("userGesture", true);
+    params->SetBool("awaitPromise", true);
+    params->SetBool("returnByValue", true);
+    void (^done)(NSString *) = [completion copy];
+    DevToolsCall::Run(_browser->GetHost(), "Runtime.evaluate", params, 5, ^(NSDictionary *answer) {
+        NSDictionary *result = answer[@"result"];
+        id value = [result isKindOfClass:NSDictionary.class] ? result[@"value"] : nil;
+        done([value isKindOfClass:NSString.class] ? value : nil);
+    });
 }
 
 - (void)showDevTools {

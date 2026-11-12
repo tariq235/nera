@@ -395,6 +395,7 @@ struct TabRow: View {
             Text(tab.displayTitle).lineLimit(1)
                 .fontWeight(isSelected ? .medium : .regular)
             Spacer(minLength: 4)
+            TabSoundButton(host: host, tab: tab)
             if isHovering || isSelected {
                 Button {
                     host.send(.tab(.close(tab.id)))
@@ -437,6 +438,7 @@ struct TabRow: View {
         .draggable(tab.id.uuidString)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
+        .tabSoundAccessibility(host: host, tab: tab)
         .accessibilityIdentifier("sidebar.tab")
         .accessibilityLabel(tab.displayTitle)
     }

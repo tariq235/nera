@@ -93,6 +93,18 @@ struct SettingsTests {
         #expect(try !JSONDecoder().decode(Settings.self, from: Data(old.utf8)).isDeveloperToolsEnabled, "older libraries decode")
     }
 
+    @Test func videosPopOutUnlessTurnedOff() throws {
+        let env = TestEnv()
+        var s = BrowserState.initial(uuid: env.nextUUID)
+        #expect(s.settings.autoPictureInPicture)
+        _ = Reducer.reduce(&s, .library(.setAutoPictureInPicture(false)), env.reducer)
+        #expect(!s.settings.autoPictureInPicture)
+        let saved = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(s.settings))
+        #expect(!saved.autoPictureInPicture, "the choice is saved")
+        let old = #"{"archiveAfter":43200,"httpsOnly":true,"searchEngine":{"name":"D","template":"https://d.example/?q={query}"}}"#
+        #expect(try JSONDecoder().decode(Settings.self, from: Data(old.utf8)).autoPictureInPicture, "on for older libraries")
+    }
+
     @Test func searchEngineCanBeChangedFromTheDefault() {
         let env = TestEnv()
         var s = BrowserState.initial(uuid: env.nextUUID)

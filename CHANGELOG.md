@@ -4,6 +4,21 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.7 — 2026-11-12
+
+- **Videos pop out when you leave their tab:** a video playing with sound keeps playing in a floating window
+  (Picture in Picture) while you're on another tab, and goes back into its page, still playing, when you return.
+  Turn it off in Settings › General › Videos.
+- **Mute from the sidebar:** a tab playing sound shows a speaker; click it to mute or unmute (Favorites too). A muted
+  tab stays muted when it reloads or Nera restarts.
+- **Your windows come back:** the browser windows open when you quit Nera open again next time, each on its Space
+  and tab, where it was on screen. Private windows never come back.
+
+### Fixed
+
+- Nera didn't notice tabs playing sound, so the player for a tab playing in the background never showed, and Mute in
+  the tab menu didn't work on sites shown with WebKit.
+
 ## 0.1.6 — 2026-11-11
 
 - **⌘Z brings back what you closed:** the last closed tab, or the Today tabs Clear removed, folders and all. Typing

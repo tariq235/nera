@@ -482,3 +482,34 @@ struct PrivateWindowTests {
         #expect(a.isClosed && b.isClosed, "closing the window closes every page, ending the session")
     }
 }
+
+@MainActor
+@Suite("Tabs on screen and sound")
+struct ShownTabsTests {
+    @Test func tabsLeavingAndReturningToTheScreenAreReported() {
+        let f = Fixture()
+        var changes: [(hidden: Set<UUID>, shown: Set<UUID>)] = []
+        f.manager.visibilityChanged = { changes.append(($0, $1)) }
+        let a = UUID()
+        let b = UUID()
+        let window = ObjectIdentifier(f)
+        let other = ObjectIdentifier(f.manager)
+        f.manager.setShownTabs([a], by: window)
+        f.manager.setShownTabs([a], by: window)
+        #expect(changes.count == 1 && changes[0].shown == [a] && changes[0].hidden.isEmpty, "only changes are reported")
+        f.manager.setShownTabs([a], by: other)
+        f.manager.setShownTabs([b], by: window)
+        #expect(changes.count == 2 && changes[1].shown == [b] && changes[1].hidden.isEmpty, "another window still shows a")
+        f.manager.setShownTabs([], by: other)
+        #expect(changes.count == 3 && changes[2].hidden == [a], "no window shows a any more")
+    }
+
+    @Test func mutedTabsStayMutedWhenTheirPageIsMadeAgain() {
+        let f = Fixture()
+        var tab = f.tab()
+        tab.isMuted = true
+        let page = f.show(tab)
+        #expect(page.state.isMuted)
+        #expect(!f.show(f.tab("https://b.example")).state.isMuted)
+    }
+}

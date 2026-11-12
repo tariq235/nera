@@ -8,6 +8,8 @@
 // Renderer only: installs Nera's WebAuthn bridge (webauthn_shim.h) in every new script context, before page
 // scripts run. Requests go to the browser process as "nera.webauthn"; answers come back as
 // "nera.webauthn.result". The browser process decides the origin from the frame (docs/security/passkeys.md).
+// Also installs the media watcher (media_watch.h) in every frame: it sends "nera.media" with whether the frame is
+// playing sound.
 #include <map>
 #include <string>
 
@@ -16,6 +18,7 @@
 #include "include/cef_sandbox_mac.h"
 #include "include/cef_v8.h"
 #include "include/wrapper/cef_library_loader.h"
+#include "media_watch.h"
 #include "webauthn_shim.h"
 
 namespace {
@@ -61,6 +64,21 @@ class Bridge : public CefV8Handler {
     IMPLEMENT_REFCOUNTING(Bridge);
 };
 
+/// `report(audible)` for the media watcher; reachable only from the watcher's closure.
+class MediaReport : public CefV8Handler {
+   public:
+    bool Execute(const CefString&, CefRefPtr<CefV8Value>, const CefV8ValueList& args, CefRefPtr<CefV8Value>&,
+                 CefString&) override {
+        CefRefPtr<CefV8Context> context = CefV8Context::GetCurrentContext();
+        if (args.size() != 1 || !args[0]->IsBool() || !context || !context->GetFrame()) return true;
+        CefRefPtr<CefProcessMessage> message = CefProcessMessage::Create("nera.media");
+        message->GetArgumentList()->SetBool(0, args[0]->GetBoolValue());
+        context->GetFrame()->SendProcessMessage(PID_BROWSER, message);
+        return true;
+    }
+    IMPLEMENT_REFCOUNTING(MediaReport);
+};
+
 class HelperApp : public CefApp, public CefRenderProcessHandler {
    public:
     CefRefPtr<CefRenderProcessHandler> GetRenderProcessHandler() override { return this; }
@@ -72,8 +90,13 @@ class HelperApp : public CefApp, public CefRenderProcessHandler {
     void OnBrowserDestroyed(CefRefPtr<CefBrowser> browser) override { PasskeyBrowsers().erase(browser->GetIdentifier()); }
 
     void OnContextCreated(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame>, CefRefPtr<CefV8Context> context) override {
-        CefRefPtr<CefV8Value> install;
+        CefRefPtr<CefV8Value> watch;
         CefRefPtr<CefV8Exception> error;
+        if (context->Eval(kNeraMediaWatch, "", 0, watch, error) && watch && watch->IsFunction()) {
+            CefV8ValueList args = {CefV8Value::CreateFunction("report", new MediaReport())};
+            watch->ExecuteFunctionWithContext(context, nullptr, args);
+        }
+        CefRefPtr<CefV8Value> install;
         if (!context->Eval(kNeraWebAuthnShim, "", 0, install, error) || !install || !install->IsFunction()) return;
         const bool passkeys = PasskeyBrowsers()[browser->GetIdentifier()];
         CefV8ValueList args = {CefV8Value::CreateFunction("bridge", new Bridge()), CefV8Value::CreateBool(passkeys)};

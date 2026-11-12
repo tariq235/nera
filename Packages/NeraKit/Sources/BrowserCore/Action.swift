@@ -74,6 +74,8 @@ public enum TabAction: Equatable, Sendable {
     case undoClose
     /// Give a tab an emoji as its icon (nil: the site's icon again).
     case setIcon(UUID, emoji: String?)
+    /// Mute or unmute a tab; it stays so when its page is reloaded, discarded or Nera restarts.
+    case setMuted(UUID, Bool)
     /// A pinned tab or Favorite returns to the page it shows now from here on (Edit Pinned Page).
     case makeCurrentPageHome(UUID)
     /// Put a Today tab in Split View beside a copy of another tab's page (Peek's Split View: the Favorite or pinned
@@ -166,6 +168,8 @@ public enum LibraryAction: Equatable, Sendable {
     case removeLinkRoute(UUID)
     /// Turn Peek for links from Favorites and pinned tabs on or off.
     case setPeekLinks(Bool)
+    /// Turn Picture in Picture for videos when you switch tabs on or off.
+    case setAutoPictureInPicture(Bool)
     /// Light, dark, the Mac's setting, or each Space's.
     case setAppearance(AppearanceChoice)
     /// Change a profile's bookmarks.

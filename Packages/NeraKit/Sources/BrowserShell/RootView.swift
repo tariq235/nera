@@ -41,6 +41,9 @@ public struct RootView: View {
             .background(
                 Theme.background(for: model.displayedTheme).animation(.easeInOut(duration: 0.45), value: model.state.selectedSpaceID)
             )
+            #if os(macOS)
+                .background(WindowTracker(model: model))
+            #endif
             .overlay {
                 if model.isWelcomePresented {
                     WelcomeView(model: model)

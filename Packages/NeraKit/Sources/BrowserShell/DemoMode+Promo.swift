@@ -35,7 +35,7 @@
                 try? await Task.sleep(for: .seconds(0.4))
                 let count = await recorder.stop()
                 FileHandle.standardOutput.write(Data("promo: \(scene) \(count) frames in \(dir)\n".utf8))  // Debug tool output
-                exit(count > 0 ? 0 : 1)
+                exit(count >= 1 ? 0 : 1)
             }
         }
 
