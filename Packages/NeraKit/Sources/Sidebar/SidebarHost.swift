@@ -44,6 +44,8 @@ public protocol SidebarHost: AnyObject {
     func customizePage(_ tabID: UUID)
     /// Opens the tab with the command bar ready to add a page beside it in Split View.
     func addSplitView(_ tabID: UUID)
+    /// The site controls (the address pill's popover) are open.
+    var isSiteControlsPresented: Bool { get set }
     /// The address the address pill shows: the page in Peek while one is open (a page always shows its site), else
     /// the selected tab's.
     var addressURL: URL? { get }

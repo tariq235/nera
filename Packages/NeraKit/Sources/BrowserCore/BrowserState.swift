@@ -17,6 +17,8 @@ public struct BrowserState: Codable, Equatable, Sendable {
     public var archive: [ArchivedTab]
     /// Stack for "Restore Last Closed Tab", newest first.
     public var recentlyClosed: [ArchivedTab]
+    /// The Today section the last Clear emptied, as it was (folders and splits too), so ⌘Z can bring it back.
+    public var clearedToday: ClearedToday?
     /// User settings.
     public var settings: Settings
 
@@ -341,5 +343,22 @@ extension BrowserState {
         }
         guard let space = selectedSpace else { return nil }
         return search(space.pinned) ?? search(space.today)
+    }
+}
+
+/// A Space's Today section as it was before Clear, for undo.
+public struct ClearedToday: Codable, Hashable, Sendable {
+    /// The Space it was cleared from.
+    public var spaceID: UUID
+    /// Its contents, in order.
+    public var nodes: [Node]
+    /// When it was cleared.
+    public var clearedAt: Date
+
+    /// Creates a record.
+    public init(spaceID: UUID, nodes: [Node], clearedAt: Date) {
+        self.spaceID = spaceID
+        self.nodes = nodes
+        self.clearedAt = clearedAt
     }
 }

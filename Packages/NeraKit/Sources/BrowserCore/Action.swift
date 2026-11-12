@@ -25,6 +25,8 @@ public enum TabAction: Equatable, Sendable {
         case currentTab
         /// A new tab shown in Split View next to the selected tab.
         case splitWithCurrent
+        /// A Little Window (File › New Little Window); a new tab where there are no Little Windows.
+        case littleWindow
     }
 
     /// Drag and drop in the sidebar: move a tab, folder or split (by node or tab ID) in the selected Space.
@@ -68,6 +70,8 @@ public enum TabAction: Equatable, Sendable {
     case duplicate(UUID)
     /// Move a tab to the top of another Space's Today (from its Space or Favorites). A selected tab is followed there.
     case moveToSpace(UUID, spaceID: UUID)
+    /// ⌘Z: bring back what was closed last: the Today section a Clear emptied, or else the last closed tab.
+    case undoClose
     /// Give a tab an emoji as its icon (nil: the site's icon again).
     case setIcon(UUID, emoji: String?)
     /// A pinned tab or Favorite returns to the page it shows now from here on (Edit Pinned Page).
@@ -115,6 +119,8 @@ public enum SpaceAction: Equatable, Sendable {
     case deleteFolder(UUID)
     /// Archive every Today tab in the current Space.
     case clearToday
+    /// Fold away or show a Space's pinned section.
+    case togglePinnedSection(UUID)
     /// Change a Space's icon and/or colors (`nil` keeps the current one).
     case customize(UUID, icon: SpaceIcon?, theme: SpaceTheme?)
 }

@@ -88,6 +88,11 @@ public struct Space: Codable, Hashable, Identifiable, Sendable {
     public var pinned: [Node]
     /// Temporary tabs, newest first. Closing archives them; idle ones are archived automatically.
     public var today: [Node]
+    /// Whether the pinned section is open or folded away (click the Space's name); nil, as in older libraries: open.
+    public var pinnedFold: SectionFold?
+
+    /// Whether the pinned section is folded away.
+    public var isPinnedCollapsed: Bool { pinnedFold == .folded }
 
     /// Creates a Space.
     public init(
@@ -102,14 +107,6 @@ public struct Space: Codable, Hashable, Identifiable, Sendable {
         self.pinned = pinned
         self.today = today
     }
-}
-
-/// The icon of a Space.
-public enum SpaceIcon: Codable, Hashable, Sendable {
-    /// A single emoji, e.g. "💼".
-    case emoji(String)
-    /// An SF Symbol name, e.g. "house.fill".
-    case symbol(String)
 }
 
 /// Our own theme model (hue-based). Colors are stored as numbers, never as presets copied from elsewhere.

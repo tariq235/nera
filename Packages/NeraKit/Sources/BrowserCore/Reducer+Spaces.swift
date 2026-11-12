@@ -34,6 +34,15 @@ extension Reducer {
 
         case .customize(let id, let icon, let theme): return customizeSpace(&state, id, icon: icon, theme: theme)
 
+        case .createFolder, .toggleFolder, .renameFolder, .deleteFolder, .togglePinnedSection: return reduceSections(&state, action, env)
+
+        case .clearToday: return clearToday(&state, env)
+        }
+    }
+
+    /// Folders, and folding the pinned section.
+    private static func reduceSections(_ state: inout BrowserState, _ action: SpaceAction, _ env: ReducerEnvironment) -> [Effect] {
+        switch action {
         case .createFolder(let title):
             guard let si = state.selectedSpaceIndex else { return [] }
             state.spaces[si].pinned.append(Node(id: env.uuid(), kind: .folder(Folder(title: title))))
@@ -45,16 +54,22 @@ extension Reducer {
                 state.spaces[si].today.updateFolder(id: id) { $0.isExpanded.toggle() }
             }
             return []
-
-        case .clearToday: return clearToday(&state, env)
         case .renameFolder(let id, let title): return renameFolder(&state, id, title: title)
         case .deleteFolder(let id): return deleteFolder(&state, id)
+        case .togglePinnedSection(let id):
+            if let i = state.spaces.firstIndex(where: { $0.id == id }) {
+                state.spaces[i].pinnedFold = state.spaces[i].isPinnedCollapsed ? .open : .folded
+            }
+            return []
+        default: return []
         }
     }
 
     private static func clearToday(_ state: inout BrowserState, _ env: ReducerEnvironment) -> [Effect] {
         guard let si = state.selectedSpaceIndex else { return [] }
         let tabs = state.spaces[si].today.flatMap(\.tabs)
+        guard !tabs.isEmpty else { return [] }
+        state.clearedToday = ClearedToday(spaceID: state.spaces[si].id, nodes: state.spaces[si].today, clearedAt: env.now())
         state.spaces[si].today = []
         for tab in tabs { pushArchive(&state, ArchivedTab(tab: tab, spaceID: state.spaces[si].id, archivedAt: env.now())) }
         if let sel = state.selectedTabID, tabs.contains(where: { $0.id == sel }) { state.selectedTabID = nil }

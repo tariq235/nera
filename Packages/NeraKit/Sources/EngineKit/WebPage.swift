@@ -38,6 +38,12 @@ public protocol WebPage: AnyObject, Observable {
     /// Ends the page's HTML full screen (the window left full screen some other way).
     func exitFullscreen()
 
+    /// Opens the Mac's print panel for the page (File › Print).
+    func printPage()
+
+    /// The page as PNG: what's on screen, or the whole page when `fullPage` (Capture). nil when it can't.
+    func capture(fullPage: Bool) async -> Data?
+
     /// HTML full screen is shown in a window of the engine's own (WebKit), not by the browser window filling the
     /// screen with the page (Chromium).
     var showsFullscreenInOwnWindow: Bool { get }
@@ -177,6 +183,50 @@ extension WebPage {
     /// Engines without HTML full screen have nothing to end.
     public func exitFullscreen() {}
 
+    /// Engines without printing print nothing.
+    public func printPage() {}
+
+    /// Engines without captures capture nothing.
+    public func capture(fullPage: Bool) async -> Data? { nil }
+
     /// Engines show HTML full screen in the browser window unless they say otherwise.
     public var showsFullscreenInOwnWindow: Bool { false }
+}
+
+/// Capturing a whole page: its size from the page, and how far it may be drawn (GPU textures stop around 16,000 px).
+public enum PageCapture {
+    /// A script answering `[width, height]` of the whole document in CSS pixels, as JSON.
+    public static let sizeScript = """
+        JSON.stringify([Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0),
+          Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)])
+        """
+
+    /// What to draw: the page's top-left `width` × `height` CSS pixels at `scale`.
+    public struct Plan: Equatable, Sendable {
+        /// Width in CSS pixels.
+        public var width: Double
+        /// Height in CSS pixels.
+        public var height: Double
+        /// Pixels per CSS pixel.
+        public var scale: Double
+
+        /// A plan.
+        public init(width: Double, height: Double, scale: Double) {
+            self.width = width
+            self.height = height
+            self.scale = scale
+        }
+    }
+
+    /// The size to draw (capped) and the scale: Retina when it fits, else 1.
+    public static func plan(fromSizeScript answer: String?) -> Plan? {
+        guard let data = answer?.data(using: .utf8), let size = try? JSONDecoder().decode([Double].self, from: data), size.count == 2,
+            size[0] > 0, size[1] > 0
+        else { return nil }
+        let scale = size[1] * 2 <= maxPixels ? 2.0 : 1.0
+        return Plan(width: min(size[0], maxPixels / scale), height: min(size[1], maxPixels / scale), scale: scale)
+    }
+
+    /// The tallest capture drawn, in pixels.
+    public static let maxPixels = 16_000.0
 }

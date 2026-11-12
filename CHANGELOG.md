@@ -4,6 +4,20 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.6 — 2026-11-11
+
+- **⌘Z brings back what you closed:** the last closed tab, or the Today tabs Clear removed, folders and all. Typing
+  in a field (in Nera or on a page), ⌘Z undoes the typing as usual.
+- **Fold pinned tabs away:** click the Space's name; the pinned tab you're on stays in view. Click again to show them.
+- **Site controls, like Arc's:** Copy Link and the site controls are at the right of the address. The controls hold
+  Share, Customize Page, Capture and Print; your extensions; this site's permissions, developer tools and engine; and
+  whether the connection is secure.
+- **The File menu, like Arc's:** Blank Window (⌃⌘N), New Little Window (⌥⌘N), Share…, Capture… (⇧⌘2: drag over
+  the page, or click for all of it), Capture Full Page, Save Page As (⇧⌘S) and Print (⌘P). Captures are copied and
+  saved to Downloads. Add Split View is ⌃⇧=, as in Arc.
+- **Updates, like Arc's:** when an update is ready, the card shows Automatic Updates and Restart and Update.
+  Check for Updates… now always finds the newest version (it used to wait for the gradual rollout).
+
 ## 0.1.5 — 2026-11-10
 
 - **Your Arc colors:** Spaces imported from Arc keep their exact colors, and the highlight in the command bar is the

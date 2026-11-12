@@ -338,6 +338,13 @@ final class FakeHandle: ChromiumPageHandle {
         scripts.append(script)
         return "ok"
     }
+    private(set) var printed = 0
+    func printPage() { printed += 1 }
+    private(set) var captures: [PageCapture.Plan] = []
+    func capturePNG(width: Double, height: Double, scale: Double) async -> Data? {
+        captures.append(PageCapture.Plan(width: width, height: height, scale: scale))
+        return Data([0x89])
+    }
 }
 
 extension Recorder {

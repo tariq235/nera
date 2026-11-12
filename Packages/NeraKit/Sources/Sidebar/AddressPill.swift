@@ -9,7 +9,7 @@ import SwiftUI
 struct AddressPill: View {
     let host: any SidebarHost
     var siteInfo: (() -> AnyView)?
-    @State private var isSiteInfoPresented = false
+    @State private var copied = false
 
     private var isWebPage: Bool {
         guard let scheme = host.addressURL?.scheme?.lowercased() else { return false }
@@ -39,26 +39,48 @@ struct AddressPill: View {
         }
     }
 
+    /// Like Arc's: the site, then Copy Link and the site controls at the right.
     private var addressBar: some View {
         HStack(spacing: 0) {
-            if let siteInfo, isWebPage {
-                let insecure = DisplayURL.isInsecure(host.addressURL)
+            urlButton
+            if isWebPage, host.addressURL != nil {
                 Button {
-                    isSiteInfoPresented.toggle()
+                    Clipboard.copy(host.addressURL?.absoluteString ?? "")
+                    withAnimation(.easeOut(duration: 0.15)) { copied = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) { withAnimation(.easeOut(duration: 0.2)) { copied = false } }
                 } label: {
-                    Image(systemName: insecure ? "exclamationmark.triangle.fill" : "lock.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(insecure ? Color.orange : Color.primary.opacity(0.55))
+                    Image(systemName: copied ? "checkmark" : "link")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.primary.opacity(copied ? 0.8 : 0.55))
+                        .frame(width: 26, height: 32)
+                        .contentShape(Rectangle())
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .help("Copy Link (⇧⌘C)")
+                .accessibilityLabel(copied ? "Link copied" : "Copy Link")
+                .accessibilityIdentifier("sidebar.copyLink")
+            }
+            if let siteInfo, isWebPage {
+                Button {
+                    host.isSiteControlsPresented.toggle()
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.primary.opacity(0.55))
                         .frame(width: 28, height: 32)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(insecure ? "Not secure: this page doesn't use HTTPS. Site settings" : "Connection is secure. Site settings")
-                .accessibilityLabel(insecure ? "Not secure. Site settings" : "Site settings")
+                .padding(.trailing, 4)
+                .help("Site controls: share, customize, capture, permissions")
+                .accessibilityLabel("Site controls")
                 .accessibilityIdentifier("sidebar.siteInfo")
-                .popover(isPresented: $isSiteInfoPresented, arrowEdge: .bottom) { siteInfo() }
+                .popover(
+                    isPresented: Binding(get: { host.isSiteControlsPresented }, set: { host.isSiteControlsPresented = $0 }),
+                    arrowEdge: .bottom
+                ) { siteInfo() }
             }
-            urlButton
         }
         .surface(.resting, cornerRadius: 10)
     }
@@ -68,7 +90,7 @@ struct AddressPill: View {
             host.showCommandBar(.currentTab)
         } label: {
             HStack(spacing: 6) {
-                if siteInfo == nil, DisplayURL.isInsecure(host.addressURL) {
+                if DisplayURL.isInsecure(host.addressURL) {
                     Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                         .help("Not secure: this page doesn't use HTTPS")
                 }
@@ -83,7 +105,7 @@ struct AddressPill: View {
                 Spacer()
             }
             .font(.system(size: 13))
-            .padding(.leading, isWebPage && siteInfo != nil ? 0 : 10).padding(.trailing, 10).padding(.vertical, 8)
+            .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -24,6 +24,7 @@ extension Reducer {
         case .rename(let id, let title): rename(&state, id, title: title)
         case .duplicate(let id): duplicate(&state, id, env)
         case .moveToSpace(let id, let spaceID): moveToSpace(&state, id, spaceID: spaceID, env)
+        case .undoClose: undoClose(&state, env)
         case .setIcon(let id, let emoji): setIcon(&state, id, emoji: emoji)
         case .makeCurrentPageHome(let id): makeCurrentPageHome(&state, id)
         }
@@ -287,6 +288,22 @@ extension Reducer {
             if state.selectedTabID == id { state.selectedTabID = neighbor }
             return [.discardPage(tabID: id)]
         }
+    }
+
+    /// The newer of the two comes back: a cleared Today (as it was, at the top of Today) or the last closed tab.
+    private static func undoClose(_ state: inout BrowserState, _ env: ReducerEnvironment) -> [Effect] {
+        guard let cleared = state.clearedToday,
+            cleared.clearedAt >= (state.recentlyClosed.first?.archivedAt ?? .distantPast),
+            let si = state.spaces.firstIndex(where: { $0.id == cleared.spaceID })
+        else { return restoreLastClosed(&state, env) }
+        state.clearedToday = nil
+        let ids = Set(cleared.nodes.flatMap(\.tabs).map(\.id))
+        state.archive.removeAll { ids.contains($0.tab.id) }
+        state.spaces[si].today = cleared.nodes + state.spaces[si].today
+        state.selectedSpaceID = cleared.spaceID
+        guard let first = cleared.nodes.first?.tabs.first else { return [] }
+        state.selectedTabID = first.id
+        return first.url.map { [.load(tabID: first.id, url: $0)] } ?? []
     }
 
     private static func restoreLastClosed(_ state: inout BrowserState, _ env: ReducerEnvironment) -> [Effect] {

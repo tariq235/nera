@@ -127,6 +127,14 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
 /// Runs one of Nera's scripts in the top frame (through the renderer helper) and calls back on the main thread
 /// with its result as a string (objects as JSON), or nil if it failed.
 - (void)evaluate:(NSString *)script completion:(void (^)(NSString *_Nullable result))completion;
+/// Opens the Mac's print panel for the page.
+- (void)print;
+/// The page as PNG through Chromium's in-process DevTools API (no debugging port): what's on screen when
+/// `width` or `height` is 0, else the page's top-left `width` × `height` CSS pixels at `scale`. nil on failure.
+- (void)capturePNGWidth:(double)width
+                 height:(double)height
+                  scale:(double)scale
+             completion:(void (^)(NSData *_Nullable png))completion;
 /// Closes the browser. No delegate callbacks after this returns.
 - (void)close;
 /// Deletes cookies and cached data of one request context.

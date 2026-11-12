@@ -112,6 +112,30 @@ struct ReducerTests {
         #expect(effects.count == 2)
     }
 
+    /// ⌘Z after Clear brings Today back as it was (a split too); after closing a tab, that tab. Newest first.
+    @Test func undoBringsBackTheTodayAClearRemovedOrTheLastClosedTab() throws {
+        var h = Harness()
+        let a = h.open("https://a.example")
+        let b = h.open("https://b.example")
+        h.send(.tab(.splitWith(b, other: a)))
+        let c = h.open("https://c.example")
+        let before = h.space.today
+        h.env.now += 10
+        h.send(.space(.clearToday))
+        #expect(h.space.today.isEmpty && h.state.clearedToday != nil)
+        h.env.now += 10
+        let d = h.open("https://d.example")
+        h.env.now += 10
+        h.send(.tab(.close(d)))
+        h.send(.tab(.undoClose))
+        #expect(h.space.today.map(\.id) == [d], "the tab closed after the Clear comes back first")
+        h.send(.tab(.undoClose))
+        #expect(Array(h.space.today.prefix(before.count)) == before, "then Today as it was, split and all")
+        #expect(h.state.selectedTabID == before.first?.tabs.first?.id)
+        #expect(h.state.clearedToday == nil)
+        #expect(!h.state.archive.contains { $0.tab.id == c }, "restored tabs leave the archive")
+    }
+
     @Test func closingPinnedTabKeepsItButUnloads() {
         var h = Harness()
         let a = h.open("https://a.example")

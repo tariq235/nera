@@ -39,15 +39,16 @@ extension AppModel {
     /// This build's number (CFBundleVersion).
     public var appBuild: Int { (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String).flatMap(Int.init) ?? 0 }
 
-    /// The checker for this build, if it has a feed and an update key (release builds).
-    var updateChecker: UpdateChecker? {
+    /// The checker for this build, if it has a feed and an update key (release builds). A check the user asked for
+    /// (Check for Updates…) skips the staged rollout, as Sparkle does: they get the newest version now.
+    func updateChecker(manual: Bool = false) -> UpdateChecker? {
         let info = Bundle.main.infoDictionary ?? [:]
         let defaults = UserDefaults.standard
         if defaults.object(forKey: Self.rolloutGroupKey) == nil { defaults.set(Int.random(in: 0..<7), forKey: Self.rolloutGroupKey) }
         return UpdateChecker(
             feedURL: (info["NeraUpdateFeedURL"] as? String).flatMap(URL.init(string:)),
             publicKeyBase64: info["NeraUpdatePublicKey"] as? String, currentBuild: appBuild, channel: .stable,
-            rolloutGroup: defaults.integer(forKey: Self.rolloutGroupKey))
+            rolloutGroup: manual ? 0 : defaults.integer(forKey: Self.rolloutGroupKey))
     }
 
     /// Checks at most once a day (or now when `force`), and gets a newer version ready to install.
@@ -57,7 +58,7 @@ extension AppModel {
         guard force || Date().timeIntervalSince(last) > 86_400 else { return }
         UserDefaults.standard.set(Date(), forKey: Self.lastUpdateCheckKey)
         #if os(macOS)
-            if let checker = updateChecker, let installer = UpdateInstaller() {
+            if let checker = updateChecker(manual: force), let installer = UpdateInstaller() {
                 Task { await prepareUpdate(checker: checker, installer: installer, force: force) }
                 return
             }
