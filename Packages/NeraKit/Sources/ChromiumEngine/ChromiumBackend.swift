@@ -219,7 +219,7 @@ public protocol ChromiumPageEvents: AnyObject {
     func findMatches(_ count: Int, active: Int, isFinal: Bool)
     /// The renderer process ended.
     func processTerminated(_ reason: ChromiumTermination)
-    /// A frame's media watcher (``MediaWatch``) found it started or stopped playing sound.
+    /// A frame's media watcher (EngineKit's `MediaWatch`) found it started or stopped playing sound.
     func mediaAudible(_ audible: Bool, frame: String)
     /// A frame went away: forget what it reported.
     func frameDetached(_ frame: String)
