@@ -32,6 +32,9 @@ public protocol WebPage: AnyObject, Observable {
     /// Reloads the page.
     func reload()
 
+    /// Reloads the page and everything on it from the network, skipping the cache (Hard Reload, ⇧⌘R).
+    func reloadIgnoringCache()
+
     /// Stops loading.
     func stop()
 
@@ -185,6 +188,9 @@ public struct FindResult: Equatable, Sendable {
 }
 
 extension WebPage {
+    /// Engines that can't skip their cache reload as usual.
+    public func reloadIgnoringCache() { reload() }
+
     /// Engines without HTML full screen have nothing to end.
     public func exitFullscreen() {}
 

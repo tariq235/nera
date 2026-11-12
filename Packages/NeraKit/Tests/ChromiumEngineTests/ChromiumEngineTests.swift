@@ -210,6 +210,12 @@ struct ChromiumAdapterTests {
         #expect(handle.finds == ["needle forward caseInsensitive"])
     }
 
+    @Test func hardReloadSkipsTheCache() {
+        let (page, handle) = makePage()
+        page.reloadIgnoringCache()
+        #expect(handle.hardReloads == 1)
+    }
+
     @Test func zoomAndMuteAreAppliedAndReported() {
         let (page, handle) = makePage()
         page.setZoom(1.5)
@@ -329,6 +335,8 @@ final class FakeHandle: ChromiumPageHandle {
     func goBack() {}
     func goForward() {}
     func reload() {}
+    var hardReloads = 0
+    func reloadIgnoringCache() { hardReloads += 1 }
     func stop() {}
     var exitedFullscreen = false
     func exitFullscreen() { exitedFullscreen = true }

@@ -206,6 +206,16 @@ struct BrowsingFeaturesTests {
         #expect(page.gestureScripts.count == 2, "turned off in Settings")
     }
 
+    @Test func hardReloadSkipsTheCacheEvenWhileLoading() throws {
+        let m = model()
+        let (_, page) = try pinnedTab(m, "https://news.example")
+        page.simulateState { $0.isLoading = true }
+        m.reload()
+        #expect(page.stopCount == 1 && page.hardReloadCount == 0, "⌘R on a loading page stops it")
+        m.hardReload()
+        #expect(page.hardReloadCount == 1, "⇧⌘R reloads from the network")
+    }
+
     @Test func muteIsRememberedForTheTab() throws {
         let m = model()
         let (tab, page) = try pinnedTab(m, "https://music.example")

@@ -4,6 +4,14 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.8 — 2026-11-12
+
+- **Drag Favorites and Spaces:** drag a Favorite to reorder it, drop a tab on a Favorite to make it one at that place,
+  or drag a Favorite back into the sidebar. Drag a Space's icon at the bottom to reorder Spaces; drop a tab on a
+  Space's icon to move it there.
+- **Drag a tab out of the window** to open it in a window of its own, where you drop it.
+- **Hard Reload (⇧⌘R):** reloads the page and everything on it from the network, skipping the cache.
+
 ## 0.1.7 — 2026-11-12
 
 - **Videos pop out when you leave their tab:** a video playing with sound keeps playing in a floating window

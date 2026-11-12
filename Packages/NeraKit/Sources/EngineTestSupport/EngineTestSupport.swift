@@ -91,6 +91,10 @@ public final class FakePage: WebPage {
     public func goForward() {}
     /// No-op.
     public func reload() {}
+    /// Counts Hard Reloads.
+    public func reloadIgnoringCache() { hardReloadCount += 1 }
+    /// How many times ``reloadIgnoringCache()`` ran.
+    public private(set) var hardReloadCount = 0
     /// Whether the page shows HTML full screen in a window of its own (like WebKit); settable.
     public var showsFullscreenInOwnWindow = false
     /// Counts the call (``exitFullscreenCount``).

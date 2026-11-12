@@ -310,7 +310,7 @@ struct FavoritesGrid: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(favorites) { tab in FavoriteTile(host: host, tab: tab) }
             }
-            .dropDestination(for: String.self) { items, _ in handleSidebarDrop(items, on: host, to: .favorites) }
+            .dropDestination(for: String.self) { items, _ in handleFavoriteDrop(items, on: host, before: nil) }
         }
     }
 }
@@ -389,6 +389,12 @@ struct TabRow: View {
 
     private var isSelected: Bool { host.state.selectedTabID == tab.id }
 
+    /// The width the close and mute buttons take at the end of the row (with its padding).
+    private var trailingButtonsWidth: CGFloat {
+        let audio = host.audio(of: tab.id)
+        return 8 + (audio.playing || audio.muted ? 26 : 0) + (isHovering || isSelected ? 22 : 0)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             TabIcon(tab: tab, size: 14, png: host.favicon(for: tab))
@@ -412,6 +418,15 @@ struct TabRow: View {
         .surface(isSelected ? .selected : (isHovering ? .hover : nil))
         .contentShape(Rectangle())
         .onTapGesture { host.send(.tab(.select(tab.id))) }
+        #if os(macOS)
+            // Clicks and drags, including out of the window into a window of its own; the close and mute buttons
+            // at the end stay SwiftUI's.
+            .overlay(
+                TabDragSource(
+                    tabID: tab.id, buttons: trailingButtonsWidth, select: { host.send(.tab(.select(tab.id))) },
+                    dropOutside: { host.openInNewWindow(tab.id, at: $0) })
+            )
+        #endif
         .onHover { isHovering = $0 }
         .contextMenu {
             TabMenu(
@@ -435,7 +450,9 @@ struct TabRow: View {
         } message: {
             Text("Leave it empty to show the page's own title.")
         }
-        .draggable(tab.id.uuidString)
+        #if !os(macOS)
+            .draggable(tab.id.uuidString)  // on the Mac, TabDragSource starts the drag
+        #endif
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .tabSoundAccessibility(host: host, tab: tab)
@@ -477,6 +494,21 @@ func handleSidebarDrop(_ items: [String], on host: any SidebarHost, to destinati
         {
             host.send(.tab(.open(url, .newTab)))  // the engine still applies the navigation policy
             handled = true
+        }
+    }
+    return handled
+}
+
+/// A tab or Favorite dropped among the Favorites goes just before `target` (nil: at the end); a link opens.
+@MainActor
+func handleFavoriteDrop(_ items: [String], on host: any SidebarHost, before target: UUID?) -> Bool {
+    var handled = false
+    for item in items {
+        if let id = UUID(uuidString: item) {
+            host.send(.tab(.moveFavorite(id, before: target)))
+            handled = true
+        } else {
+            handled = handleSidebarDrop([item], on: host, to: .favorites) || handled
         }
     }
     return handled

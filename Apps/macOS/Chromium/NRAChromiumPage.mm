@@ -646,6 +646,7 @@ class DevToolsCall : public CefDevToolsMessageObserver {
     if (_browser) _browser->GetHost()->ExitFullscreen(true);
 }
 - (void)reload { if (_browser) _browser->Reload(); }
+- (void)reloadIgnoringCache { if (_browser) _browser->ReloadIgnoreCache(); }
 - (void)stop { if (_browser) _browser->StopLoad(); }
 - (void)setZoomFactor:(double)factor {
     // Chromium zoom levels are logarithmic: factor = 1.2 ^ level.

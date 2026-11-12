@@ -74,6 +74,9 @@ public enum TabAction: Equatable, Sendable {
     case undoClose
     /// Give a tab an emoji as its icon (nil: the site's icon again).
     case setIcon(UUID, emoji: String?)
+    /// Put a tab among the Favorites just before another Favorite (nil: at the end): reorders a Favorite, or makes a
+    /// sidebar tab a Favorite at that place.
+    case moveFavorite(UUID, before: UUID?)
     /// Mute or unmute a tab; it stays so when its page is reloaded, discarded or Nera restarts.
     case setMuted(UUID, Bool)
     /// A pinned tab or Favorite returns to the page it shows now from here on (Edit Pinned Page).
@@ -123,6 +126,8 @@ public enum SpaceAction: Equatable, Sendable {
     case clearToday
     /// Fold away or show a Space's pinned section.
     case togglePinnedSection(UUID)
+    /// Move a Space just before another (nil: to the end), dragging its icon in the bottom bar.
+    case move(UUID, before: UUID?)
     /// Change a Space's icon and/or colors (`nil` keeps the current one).
     case customize(UUID, icon: SpaceIcon?, theme: SpaceTheme?)
 }

@@ -43,6 +43,8 @@ public protocol ChromiumPageHandle: AnyObject {
     func goForward()
     /// Reloads.
     func reload()
+    /// Reloads, skipping the cache.
+    func reloadIgnoringCache()
     /// Stops loading.
     func stop()
     /// Ends the page's HTML full screen.

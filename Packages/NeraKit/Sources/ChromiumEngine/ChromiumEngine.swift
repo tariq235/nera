@@ -128,6 +128,7 @@ final class ChromiumPage: WebPage {
     func goBack() { handle.goBack() }
     func goForward() { handle.goForward() }
     func reload() { handle.reload() }
+    func reloadIgnoringCache() { handle.reloadIgnoringCache() }
     func stop() { handle.stop() }
     func exitFullscreen() { handle.exitFullscreen() }
 

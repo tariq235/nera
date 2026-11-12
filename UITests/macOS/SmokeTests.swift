@@ -63,7 +63,8 @@ final class SmokeTests: NeraUITestCase {
             // drawn in full-strength label color on an opaque background (tried 2026-11-09; also without the grain
             // texture). Measured from its own screenshots: greeting ~14:1, date 8.2:1, privacy line 5.6:1 at 70% and
             // higher at today's 80% (4.5:1 needed). Every other element is still checked.
-            let startPageText = ["start.greeting", "start.date", "start.privacyLine"]
+            // The same for the "Nera updated!" card's title (shown after an update): 8.6:1 measured 2026-11-12.
+            let startPageText = ["start.greeting", "start.date", "start.privacyLine", "update.updatedTitle"]
             let isGreetingOnGrain = issue.auditType == .contrast && startPageText.contains(element.identifier)
             if isMenuButtonAction || isTitleBarChrome || isOutsideWindow || isGreetingOnGrain { return true }
             if !isWindowContainer { print("a11y-audit: \(issue.compactDescription) — \(element.debugDescription.prefix(300))") }

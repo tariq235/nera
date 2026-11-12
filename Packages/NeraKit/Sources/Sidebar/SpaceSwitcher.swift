@@ -54,7 +54,10 @@ struct SpaceSwitcher: View {
                 .buttonStyle(.plain)
                 .help(spaceHelp(space))
                 .accessibilityLabel(spaceHelp(space))
+                .accessibilityIdentifier("sidebar.space")
                 .contextMenu { SpaceMenuItems(host: host, space: space) }
+                .draggable(SpaceDrag.payload(space.id))
+                .dropDestination(for: String.self) { items, _ in SpaceDrag.drop(items, on: space.id, host: host) }
             }
             Spacer()
             accessory
@@ -72,5 +75,29 @@ struct SpaceSwitcher: View {
             .accessibilityLabel("New Space, folder or import")
             .accessibilityIdentifier("sidebar.plusMenu")
         }
+    }
+}
+
+/// Dragging in the bottom bar: a Space's icon onto another moves it there; a tab onto a Space's icon moves the tab
+/// to that Space, as in Arc.
+enum SpaceDrag {
+    private static let prefix = "space:"
+
+    /// What a Space's icon carries when dragged (a tab carries its bare ID).
+    static func payload(_ id: UUID) -> String { prefix + id.uuidString }
+
+    @MainActor
+    static func drop(_ items: [String], on target: UUID, host: any SidebarHost) -> Bool {
+        var handled = false
+        for item in items {
+            if item.hasPrefix(prefix), let id = UUID(uuidString: String(item.dropFirst(prefix.count))) {
+                host.send(.space(.move(id, before: target)))
+                handled = true
+            } else if let id = UUID(uuidString: item) {
+                host.send(.tab(.moveToSpace(id, spaceID: target)))
+                handled = true
+            }
+        }
+        return handled
     }
 }

@@ -51,6 +51,9 @@ public protocol SidebarHost: AnyObject {
     var addressURL: URL? { get }
     /// The page open in Peek from this tab, for the small icon on the tab's tile.
     func peekOpened(from tabID: UUID) -> (url: URL?, png: Data?)?
+    /// A tab dragged out of the sidebar and dropped outside Nera's windows: a new window shows it, its top-left corner
+    /// at `point` (screen coordinates).
+    func openInNewWindow(_ tabID: UUID, at point: CGPoint)
     /// + New Space: makes a Space and opens New Space to name and style it.
     func newSpace()
     /// How far a two-finger swipe on the sidebar has dragged the Space sideways (points; 0 when idle).
@@ -103,4 +106,6 @@ extension SidebarHost {
     public var addressURL: URL? { state.selectedTab?.url }
     /// No Peek by default.
     public func peekOpened(from tabID: UUID) -> (url: URL?, png: Data?)? { nil }
+    /// One window by default.
+    public func openInNewWindow(_ tabID: UUID, at point: CGPoint) {}
 }

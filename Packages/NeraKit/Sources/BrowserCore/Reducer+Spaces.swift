@@ -37,6 +37,8 @@ extension Reducer {
         case .createFolder, .toggleFolder, .renameFolder, .deleteFolder, .togglePinnedSection: return reduceSections(&state, action, env)
 
         case .clearToday: return clearToday(&state, env)
+
+        case .move(let id, let target): return moveSpace(&state, id, before: target)
         }
     }
 
@@ -63,6 +65,15 @@ extension Reducer {
             return []
         default: return []
         }
+    }
+
+    private static func moveSpace(_ state: inout BrowserState, _ id: UUID, before target: UUID?) -> [Effect] {
+        guard id != target, let from = state.spaces.firstIndex(where: { $0.id == id }) else { return [] }
+        if let target, !state.spaces.contains(where: { $0.id == target }) { return [] }
+        let space = state.spaces.remove(at: from)
+        let to = target.flatMap { t in state.spaces.firstIndex { $0.id == t } } ?? state.spaces.endIndex
+        state.spaces.insert(space, at: to)
+        return []
     }
 
     private static func clearToday(_ state: inout BrowserState, _ env: ReducerEnvironment) -> [Effect] {
