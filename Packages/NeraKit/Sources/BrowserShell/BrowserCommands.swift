@@ -139,6 +139,7 @@ public struct BrowserCommands: Commands {
             Button(model.isSidebarVisible ? "Hide Sidebar" : "Show Sidebar") { model.isSidebarVisible.toggle() }.keyboardShortcut("s")
             Divider()
             Button("Reload Page") { model.reload() }.keyboardShortcut("r")
+            Button("Hard Reload") { model.hardReload() }.keyboardShortcut("r", modifiers: [.command, .shift])
             Button("Actual Size") { model.zoom(0) }.keyboardShortcut("0")
             Button("Zoom In") { model.zoom(1) }.keyboardShortcut("=")
             Button("Zoom Out") { model.zoom(-1) }.keyboardShortcut("-")

@@ -72,6 +72,7 @@ struct UpdateCard: View {
     private var updated: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Nera updated!").font(.system(size: 14, weight: .bold)).padding(.bottom, 2)
+                .accessibilityIdentifier("update.updatedTitle")
             link("What's new", symbol: "sparkles", url: "https://github.com/tariq235/nera/releases/tag/v\(model.appVersion)")
             link("Sponsor Nera", symbol: "heart", url: "https://github.com/sponsors/tariq235")
         }
@@ -173,8 +174,9 @@ private struct Sparkles: View {
         var phase: Double
     }
 
+    /// Kept in the card's right part, clear of its text (a sparkle behind the text would lower its contrast).
     private let points: [Point] = (0..<9).map { i in
-        let x = CGFloat((i * 37) % 100) / 100
+        let x = 0.6 + 0.36 * CGFloat((i * 37) % 100) / 100
         let y = CGFloat((i * 61) % 100) / 100
         return Point(x: x, y: y, size: CGFloat(2 + (i % 3)), phase: Double(i) * 0.7)
     }

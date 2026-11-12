@@ -101,6 +101,8 @@ struct FavoriteTile: View {
     @State private var isRenaming = false
     @State private var newName = ""
     @State private var isChangingIcon = false
+    /// Something is dragged over the tile: it would land just before it.
+    @State private var isDropTarget = false
 
     var body: some View {
         Button {
@@ -114,6 +116,17 @@ struct FavoriteTile: View {
         }
         .buttonStyle(.plain)
         .overlay(alignment: .bottomTrailing) { TabSoundButton(host: host, tab: tab, isBadge: true).offset(x: -4, y: -4) }
+        .overlay(alignment: .leading) {
+            if isDropTarget {
+                Capsule().fill(Color.accentColor).frame(width: 2).padding(.vertical, 6).offset(x: -5).allowsHitTesting(false)
+            }
+        }
+        .draggable(tab.id.uuidString)
+        .dropDestination(for: String.self) { items, _ in
+            handleFavoriteDrop(items, on: host, before: tab.id)
+        } isTargeted: {
+            isDropTarget = $0
+        }
         .help(tab.displayTitle)
         .contextMenu {
             TabMenu(
@@ -137,6 +150,7 @@ struct FavoriteTile: View {
                 isChangingIcon = false
             }
         }
+        .accessibilityLabel(tab.displayTitle)
         .tabSoundAccessibility(host: host, tab: tab)
         .accessibilityIdentifier("sidebar.favorite")
     }

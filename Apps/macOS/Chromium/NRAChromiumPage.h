@@ -114,6 +114,8 @@ typedef NS_OPTIONS(NSUInteger, NRAPermissionKinds) {
 /// Ends the page's HTML full screen (the window left full screen some other way).
 - (void)exitFullscreen;
 - (void)reload;
+/// Reloads, skipping the cache (Hard Reload).
+- (void)reloadIgnoringCache;
 - (void)stop;
 /// 1.0 = 100%.
 - (void)setZoomFactor:(double)factor;

@@ -20,6 +20,7 @@ extension Reducer {
         case .restoreLastClosed: restoreLastClosed(&state, env)
         case .didUpdate(let id, let url, let title): didUpdate(&state, id, url: url, title: title)
         case .addToFavorites(let id): addToFavorites(&state, id)
+        case .moveFavorite(let id, let target): moveFavorite(&state, id, before: target)
         case .move(let id, let section, let index): move(&state, id, section: section, index: index)
         case .duplicate(let id): duplicate(&state, id, env)
         case .moveToSpace(let id, let spaceID): moveToSpace(&state, id, spaceID: spaceID, env)
@@ -136,7 +137,9 @@ extension Reducer {
     private static func moveNode(_ state: inout BrowserState, _ id: UUID, to destination: NodeDestination, _ env: ReducerEnvironment)
         -> [Effect]
     {
-        guard let si = state.selectedSpaceIndex, canMove(state.spaces[si], id, to: destination) else { return [] }
+        guard let si = state.selectedSpaceIndex else { return [] }
+        if destination != .favorites { unfavorite(&state, id, into: si) }  // a Favorite dragged into the sidebar
+        guard canMove(state.spaces[si], id, to: destination) else { return [] }
         if case .favorites = destination { return reduceTab(&state, .addToFavorites(id), env) }
         var pinned = state.spaces[si].pinned
         var today = state.spaces[si].today
@@ -173,6 +176,15 @@ extension Reducer {
         state.spaces[si].pinned = pinned
         state.spaces[si].today = today
         return []
+    }
+
+    /// A Favorite leaves the Favorites for the top of the Space's Today, from where the drop places it.
+    private static func unfavorite(_ state: inout BrowserState, _ id: UUID, into si: Int) {
+        guard let pi = state.profiles.firstIndex(where: { $0.id == state.spaces[si].profileID }),
+            let fi = state.profiles[pi].favorites.firstIndex(where: { $0.id == id })
+        else { return }
+        let tab = state.profiles[pi].favorites.remove(at: fi)
+        state.spaces[si].today.insert(.tab(tab), at: 0)
     }
 
     /// A drop is valid when the item is in the Space and wouldn't land in itself (folders into their own subfolders).
@@ -395,6 +407,21 @@ extension Reducer {
         var fav = tab
         fav.homeURL = fav.homeURL ?? fav.url
         state.profiles[pi].favorites.append(fav)
+        return []
+    }
+
+    private static func moveFavorite(_ state: inout BrowserState, _ id: UUID, before target: UUID?) -> [Effect] {
+        guard id != target, let profileID = state.selectedSpace?.profileID,
+            let pi = state.profiles.firstIndex(where: { $0.id == profileID })
+        else { return [] }
+        if let target, !state.profiles[pi].favorites.contains(where: { $0.id == target }) { return [] }
+        if !state.profiles[pi].favorites.contains(where: { $0.id == id }) {
+            _ = addToFavorites(&state, id)  // a sidebar tab becomes a Favorite first
+        }
+        guard let from = state.profiles[pi].favorites.firstIndex(where: { $0.id == id }) else { return [] }
+        let favorite = state.profiles[pi].favorites.remove(at: from)
+        let to = target.flatMap { t in state.profiles[pi].favorites.firstIndex { $0.id == t } } ?? state.profiles[pi].favorites.endIndex
+        state.profiles[pi].favorites.insert(favorite, at: to)
         return []
     }
 

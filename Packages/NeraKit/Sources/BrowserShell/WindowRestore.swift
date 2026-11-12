@@ -113,6 +113,28 @@ extension AppModel {
         #endif
     }
 
+    /// A tab dragged out of the sidebar and dropped outside Nera's windows opens in a window of its own there (the
+    /// size of this one, its top-left corner at `point`), as in Arc. This window moves to the tab used before it:
+    /// a page shows in one window at a time.
+    public func openInNewWindow(_ tabID: UUID, at point: CGPoint) {
+        guard state.locate(tabID) != nil else { return }
+        #if os(macOS)
+            let size = hostWindow?.frame.size ?? CGSize(width: 1200, height: 800)
+        #else
+            let size = CGSize(width: 1200, height: 800)
+        #endif
+        let frame = CGRect(x: point.x, y: point.y - size.height, width: size.width, height: size.height)
+        if state.selectedTabID == tabID {
+            let others = state.selectedSpace.map(state.orderedTabs(in:))?.filter { $0.id != tabID } ?? []
+            if let previous = others.max(by: { $0.lastActiveAt < $1.lastActiveAt }) {
+                send(.tab(.select(previous.id)))
+            } else {
+                send(.tab(.clearSelection))
+            }
+        }
+        pendingBrowserWindow = BrowserWindowRequest(restoring: SavedWindow(spaceID: state.selectedSpaceID, tabID: tabID, frame: frame))
+    }
+
     /// Puts a restored window on its Space and tab (if they still exist; else the first window's Space).
     func restore(_ saved: SavedWindow) {
         let space = store.state.spaces.contains { $0.id == saved.spaceID } ? saved.spaceID : store.state.selectedSpaceID

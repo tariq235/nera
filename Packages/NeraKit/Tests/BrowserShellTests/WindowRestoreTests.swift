@@ -112,4 +112,19 @@ struct WindowRestoreTests {
         m.restoreWindows(from: defaults) { _ in opened += 1 }
         #expect(opened == 0)
     }
+
+    @Test func aTabDraggedOutOpensInAWindowOfItsOwn() throws {
+        let library = try library()
+        let m = library.model
+        m.send(.tab(.select(library.tabs[1])))
+        m.send(.tab(.open(URL(string: "https://c.example")!, .newTab)))
+        let dragged = try #require(m.state.selectedTabID)
+        m.openInNewWindow(dragged, at: CGPoint(x: 300, y: 900))
+        let request = try #require(m.pendingBrowserWindow?.restoring)
+        #expect(request.tabID == dragged && request.spaceID == library.spaces[1])
+        #expect(request.rect?.minX == 300 && request.rect?.maxY == 900, "its top-left corner where it was dropped")
+        #expect(m.state.selectedTabID == library.tabs[1], "this window goes back to the tab used before")
+        m.openInNewWindow(UUID(), at: .zero)
+        #expect(m.pendingBrowserWindow?.restoring?.tabID == dragged, "an unknown tab opens nothing")
+    }
 }

@@ -75,6 +75,7 @@ final class WebKitPage: NSObject, WebPage {
     func goBack() { webView.goBack() }
     func goForward() { webView.goForward() }
     func reload() { webView.reload() }
+    func reloadIgnoringCache() { webView.reloadFromOrigin() }
     func stop() { webView.stopLoading() }
 
     func setZoom(_ factor: Double) {

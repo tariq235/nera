@@ -158,6 +158,7 @@ final class CEFPage: NSObject, ChromiumPageHandle {
     func goBack() { bridge.goBack() }
     func goForward() { bridge.goForward() }
     func reload() { bridge.reload() }
+    func reloadIgnoringCache() { bridge.reloadIgnoringCache() }
     func stop() { bridge.stop() }
     func exitFullscreen() { bridge.exitFullscreen() }
     func setZoomFactor(_ factor: Double) { bridge.setZoomFactor(factor) }

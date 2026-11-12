@@ -85,6 +85,11 @@ public struct RootView: View {
                     model.pendingLittleWindow = nil
                     openWindow(id: AppModel.littleWindowID, value: id)
                 }
+                .onChange(of: model.pendingBrowserWindow) { _, request in
+                    guard let request else { return }
+                    model.pendingBrowserWindow = nil
+                    openWindow(id: AppModel.browserWindowID, value: request)
+                }
             #endif
     }
 

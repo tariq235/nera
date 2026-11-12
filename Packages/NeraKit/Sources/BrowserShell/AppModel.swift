@@ -88,6 +88,8 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var littleTabs: [UUID: BrowserCore.Tab] = [:]
     /// A Little Window waiting to be opened by the main window's view.
     public var pendingLittleWindow: UUID?
+    /// A browser window waiting to be opened by this window's view (a tab dragged out of the sidebar).
+    public var pendingBrowserWindow: BrowserWindowRequest?
     /// A background tab the user paused from the mini player (it stays there to be resumed).
     public var pausedMediaTabID: UUID?
     /// Tabs whose video Nera floated out when you left them (AppModel+PictureInPicture.swift).
@@ -334,11 +336,14 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public func goBack() { selectedPage?.goBack() }
     /// Forward.
     public func goForward() { selectedPage?.goForward() }
-    /// Reload.
+    /// Reload (⌘R); stops a page still loading.
     public func reload() {
         guard let page = selectedPage else { return }
         if page.state.isLoading { page.stop() } else { page.reload() }
     }
+
+    /// Hard Reload (⇧⌘R): the page and everything on it again from the network, skipping the cache.
+    public func hardReload() { selectedPage?.reloadIgnoringCache() }
 
     /// ⌘W.
     public func closeSelectedTab() {
