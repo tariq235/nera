@@ -180,7 +180,11 @@ public final class PageManager {
     @ObservationIgnored public private(set) var activeTabID: UUID?
 
     @ObservationIgnored let clock: () -> Date
-    @ObservationIgnored var pages: [UUID: any WebPage] = [:]
+    @ObservationIgnored var pages: [UUID: any WebPage] = [:] {
+        didSet { if loadedTabIDs.count != pages.count || !pages.keys.allSatisfy(loadedTabIDs.contains) { loadedTabIDs = Set(pages.keys) } }
+    }
+    /// The tabs whose page is in memory (observed: the sidebar marks open Favorites with a dot).
+    public private(set) var loadedTabIDs: Set<UUID> = []
     @ObservationIgnored var lastUsed: [UUID: Date] = [:]
     @ObservationIgnored private var lastReported: [UUID: Reported] = [:]
     @ObservationIgnored private var scopes: [UUID: StorageScope] = [:]

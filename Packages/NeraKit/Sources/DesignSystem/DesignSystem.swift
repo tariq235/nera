@@ -258,6 +258,8 @@ public enum Surface {
         case resting
         /// Under the pointer.
         case hover
+        /// A resting tile under the pointer (Favorites).
+        case raised
         /// The selected row or tile.
         case selected
     }
@@ -267,10 +269,12 @@ public enum Surface {
         switch (level, scheme == .dark) {
         case (.resting, false): .white.opacity(0.34)
         case (.hover, false): .white.opacity(0.26)
+        case (.raised, false): .white.opacity(0.5)
         case (.selected, false): .white.opacity(0.72)
         // White over the Space's color, as Arc draws it wherever its text is white (measured: 10% and 20%).
         case (.resting, true): .white.opacity(0.10)
         case (.hover, true): .white.opacity(0.08)
+        case (.raised, true): .white.opacity(0.15)
         case (.selected, true): .white.opacity(0.20)
         }
     }
@@ -318,18 +322,66 @@ struct SurfaceModifier: ViewModifier {
 
         final class ButtonsView: NSView {
             var isVisible = true { didSet { apply() } }
+            private var observers: [any NSObjectProtocol] = []
+
+            /// Where Arc puts the close button's center, from the window's top-left corner (measured, points).
+            static let closeCenter = CGPoint(x: 20.5, y: 25)
 
             // Only sets the buttons' visibility: clicks (double-click to zoom, drag to move) go to what's below.
             override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
             override func viewDidMoveToWindow() {
                 super.viewDidMoveToWindow()
+                observers.forEach(NotificationCenter.default.removeObserver)
+                observers = []
+                if let window {
+                    // AppKit lays the buttons out again after these; put them back where they belong each time.
+                    let names: [Notification.Name] = [
+                        NSWindow.didResizeNotification, NSWindow.didEndLiveResizeNotification, NSWindow.didBecomeKeyNotification,
+                        NSWindow.didResignKeyNotification, NSWindow.didExitFullScreenNotification,
+                    ]
+                    observers = names.map {
+                        NotificationCenter.default.addObserver(forName: $0, object: window, queue: .main) { [weak self] _ in
+                            MainActor.assumeIsolated { self?.placeButtons() }
+                        }
+                    }
+                }
                 apply()
+            }
+
+            override func layout() {
+                super.layout()
+                placeButtons()
             }
 
             private func apply() {
                 for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
                     window?.standardWindowButton(kind)?.isHidden = !isVisible
+                }
+                placeButtons()
+            }
+
+            /// Moves the close, minimize and zoom buttons down and in to where Arc has them, keeping their spacing,
+            /// and makes the title bar tall enough to hold them there.
+            private func placeButtons() {
+                guard let window, !window.styleMask.contains(.fullScreen),
+                    let close = window.standardWindowButton(.closeButton),
+                    let mini = window.standardWindowButton(.miniaturizeButton),
+                    let zoom = window.standardWindowButton(.zoomButton),
+                    let titlebar = close.superview, let container = titlebar.superview
+                else { return }
+                let height = Self.closeCenter.y * 2
+                let containerFrame = NSRect(
+                    x: 0, y: window.frame.height - height, width: window.frame.width, height: height)
+                if container.frame != containerFrame { container.frame = containerFrame }
+                if titlebar.frame != container.bounds { titlebar.frame = container.bounds }
+                let spacing = mini.frame.minX - close.frame.minX
+                let size = close.frame.size
+                for (index, button) in [close, mini, zoom].enumerated() {
+                    let origin = NSPoint(
+                        x: (Self.closeCenter.x - size.width / 2 + CGFloat(index) * spacing).rounded(),
+                        y: (titlebar.bounds.height - Self.closeCenter.y - size.height / 2).rounded())
+                    if button.frame.origin != origin { button.setFrameOrigin(origin) }
                 }
             }
         }

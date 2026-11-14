@@ -39,7 +39,7 @@ public struct SidebarView: View {
 
     /// The sidebar.
     public var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Metrics.sectionGap) {
             SidebarTopBar(host: host)
             AddressPill(host: host, siteInfo: siteInfo)
             if !host.isPrivateSession { FavoritesGrid(host: host) }
@@ -83,7 +83,7 @@ public struct SidebarView: View {
             SpaceSwitcher(host: host, accessory: accessory)
         }
         .padding(.horizontal, 10)
-        .padding(.top, 1)  // lines the top bar up with the window's buttons
+        .padding(.top, Metrics.topBarInset)  // lines the top bar up with the window's buttons
         .padding(.bottom, 8)
     }
 
@@ -96,7 +96,7 @@ public struct SidebarView: View {
     static let pageGap: CGFloat = 24
 
     private func spaceContent(_ space: Space) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Metrics.headerToTabs) {
             if host.isPrivateSession {
                 Text("Private Tabs").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(.secondary)
                     .padding(.horizontal, 8).padding(.top, 4)
@@ -106,7 +106,7 @@ public struct SidebarView: View {
                 SpaceHeader(host: host, space: space)
             }
             ScrollView {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Metrics.rowGap) {
                     // Folded away (click the Space's name): only the pinned tab you're on stays in view.
                     ForEach(space.isPinnedCollapsed ? space.pinned.filter(containsSelection) : space.pinned) { node in
                         NodeRow(host: host, node: node).sidebarDropTarget(host, .before(node.id))
@@ -169,7 +169,7 @@ struct SidebarTopBar: View {
 
     var body: some View {
         let nav = host.pageNavigation
-        HStack(spacing: 2) {
+        HStack(spacing: 5) {
             SidebarIconButton(symbol: "sidebar.left", help: "Hide Sidebar (⌘S)") { host.toggleSidebar() }
             Spacer(minLength: 4)
             SidebarIconButton(symbol: "arrow.left", help: "Back (⌘[)", isEnabled: nav.canGoBack) { host.goBack() }
@@ -185,7 +185,8 @@ struct SidebarTopBar: View {
             .accessibilityIdentifier("sidebar.reload")
         }
         .frame(height: 28)
-        .padding(.leading, 66)  // the window's buttons sit here
+        .padding(.leading, 71)  // the window's buttons sit here
+        .padding(.trailing, -5)
         #if os(macOS)
             .background(TitleBarArea())  // drag to move, double-click to zoom, like a title bar
         #endif
@@ -213,7 +214,7 @@ public struct SidebarIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 13, weight: .medium))
-                .frame(width: 28, height: 26)
+                .frame(width: 30, height: 28)
                 .contentShape(Rectangle())
                 .surface(isHovering && isEnabled ? .hover : nil, cornerRadius: 6)
         }
@@ -244,7 +245,7 @@ struct SpaceHeader: View {
                 }
             }
             .frame(width: 16)
-            Text(space.title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+            Text(space.title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
             Spacer()
             Menu {
                 SpaceMenuItems(host: host, space: space)
@@ -254,13 +255,13 @@ struct SpaceHeader: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .opacity(isHovering ? 1 : 0.45)
+            .opacity(isHovering ? 1 : 0)  // as in Arc: shown when the pointer is on the Space's name
             .accessibilityLabel("Space options")
             .accessibilityIdentifier("sidebar.spaceMenu")
         }
         // Readable on every Space color (WCAG 4.5:1 on the lightest), still quieter than the tabs below.
-        .foregroundStyle(.primary.opacity(0.85))
-        .padding(.horizontal, 8).padding(.top, 2)
+        .foregroundStyle(.primary.opacity(0.7))
+        .padding(.horizontal, 8).padding(.top, Metrics.headerTop)
         .contentShape(Rectangle())
         .background(isHovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
@@ -285,12 +286,12 @@ struct NewTabRow: View {
         Button {
             host.showCommandBar(.newTab)
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "plus").font(.system(size: 12, weight: .semibold)).frame(width: 18)
-                Text("New Tab")
+            HStack(spacing: 10) {
+                Image(systemName: "plus").font(.system(size: 13, weight: .semibold)).frame(width: 18)
+                Text("New Tab").font(.system(size: Metrics.rowFont))
                 Spacer()
             }
-            .padding(.horizontal, 8).padding(.vertical, 7)
+            .padding(.horizontal, 7).frame(height: Metrics.rowHeight)
             .contentShape(Rectangle())
             .surface(isHovering ? .hover : nil)
         }
@@ -307,7 +308,7 @@ struct FavoritesGrid: View {
     var body: some View {
         let favorites = host.state.currentProfile?.favorites ?? []
         if !favorites.isEmpty {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Metrics.tileGap), count: 4), spacing: Metrics.tileRowGap) {
                 ForEach(favorites) { tab in FavoriteTile(host: host, tab: tab) }
             }
             .dropDestination(for: String.self) { items, _ in handleFavoriteDrop(items, on: host, before: nil) }
@@ -326,19 +327,19 @@ struct NodeRow: View {
         case .tab(let tab):
             TabRow(host: host, tab: tab)
         case .folder(let folder):
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: Metrics.rowGap) {
                 Button {
                     host.send(.space(.toggleFolder(node.id)))
                 } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Image(systemName: folder.isExpanded ? "folder.fill" : "folder")
-                            .font(.system(size: 13)).foregroundStyle(.primary.opacity(0.6)).frame(width: 18)
-                        Text(folder.title).lineLimit(1)
+                            .font(.system(size: 14)).foregroundStyle(.primary.opacity(0.6)).frame(width: 18)
+                        Text(folder.title).font(.system(size: Metrics.rowFont)).lineLimit(1)
                         Spacer()
                         Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.tertiary)
                             .rotationEffect(.degrees(folder.isExpanded ? 90 : 0))
                     }
-                    .padding(.horizontal, 8).padding(.vertical, 7)
+                    .padding(.horizontal, 7).frame(height: Metrics.rowHeight)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -397,9 +398,8 @@ struct TabRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            TabIcon(tab: tab, size: 14, png: host.favicon(for: tab))
+            TabIcon(tab: tab, size: 16, png: host.favicon(for: tab))
             Text(tab.displayTitle).lineLimit(1)
-                .fontWeight(isSelected ? .medium : .regular)
             Spacer(minLength: 4)
             TabSoundButton(host: host, tab: tab)
             if isHovering || isSelected {
@@ -413,8 +413,8 @@ struct TabRow: View {
                 .accessibilityLabel("Close \(tab.displayTitle)")
             }
         }
-        .font(.system(size: 13))
-        .padding(.horizontal, 8).padding(.vertical, 7)
+        .font(.system(size: Metrics.rowFont))
+        .padding(.leading, 6).padding(.trailing, 8).frame(height: Metrics.rowHeight)
         .surface(isSelected ? .selected : (isHovering ? .hover : nil))
         .contentShape(Rectangle())
         .onTapGesture { host.send(.tab(.select(tab.id))) }
@@ -463,11 +463,13 @@ struct TabRow: View {
 
 struct TodayDivider: View {
     let host: any SidebarHost
+    @State private var isHovering = false
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             Rectangle().fill(.primary.opacity(0.12)).frame(height: 1)
-            if !(host.state.selectedSpace?.today.isEmpty ?? true) {
+            // As in Arc: "Clear" shows when the pointer is on the line.
+            if isHovering, !(host.state.selectedSpace?.today.isEmpty ?? true) {
                 Button("Clear") { host.send(.space(.clearToday)) }
                     .buttonStyle(.plain)
                     .font(.caption)
@@ -475,8 +477,38 @@ struct TodayDivider: View {
                     .accessibilityIdentifier("sidebar.clearToday")
             }
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 9)
+        .frame(height: Metrics.dividerHeight)
+        .contentShape(Rectangle().inset(by: -6))
+        .onHover { isHovering = $0 }
     }
+}
+
+/// The sidebar's measurements, taken from Arc's sidebar (points).
+enum Metrics {
+    /// Window top to the top bar (centers it on the window's buttons).
+    static let topBarInset: CGFloat = 11
+    /// Between the top bar, the address bar, the Favorites and the Space.
+    static let sectionGap: CGFloat = 9
+    /// Above the Space's name.
+    static let headerTop: CGFloat = 10
+    /// The Space's name to its first tab.
+    static let headerToTabs: CGFloat = 19
+    /// A tab row's height, and the gap between rows.
+    static let rowHeight: CGFloat = 33
+    static let rowGap: CGFloat = 9
+    /// The tabs' text size.
+    static let rowFont: CGFloat = 14
+    /// The divider between pinned and Today tabs.
+    static let dividerHeight: CGFloat = 9
+    /// Favorites: tile height, icon size, gaps across and down.
+    static let tileHeight: CGFloat = 48
+    static let tileIcon: CGFloat = 16
+    static let tileGap: CGFloat = 10
+    static let tileRowGap: CGFloat = 8
+    /// The address bar's height and text size.
+    static let addressHeight: CGFloat = 36
+    static let addressFont: CGFloat = 14
 }
 
 // MARK: - Drag and drop

@@ -6,6 +6,9 @@ public import Foundation
 
 /// What the tab menu (a Favorite's, a pinned tab's or a Today tab's) does beyond library actions.
 extension AppModel {
+    /// Whether the tab's page is open in memory.
+    public func isLoaded(_ tabID: UUID) -> Bool { pages.loadedTabIDs.contains(tabID) }
+
     /// Whether the tab's page is playing sound, and whether it's muted.
     public func audio(of tabID: UUID) -> (playing: Bool, muted: Bool) {
         guard let page = pages.existingPage(for: tabID) else { return (false, state.tab(withID: tabID)?.isMuted ?? false) }

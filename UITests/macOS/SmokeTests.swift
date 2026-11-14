@@ -45,7 +45,7 @@ final class SmokeTests: NeraUITestCase {
     /// sidebar). Ignored, as framework artifacts: issues without an element; the window's own full-size content
     /// group, which AppKit creates outside SwiftUI (it has no label to set); and "action missing" on SwiftUI menu
     /// buttons, which open with AXShowMenu rather than AXPress; anything inside the title-bar strip (the system's
-    /// window buttons). Everything else Nera draws must pass.
+    /// window buttons, 50 pt tall since they sit where Arc has them). Everything else Nera draws must pass.
     func testAccessibilityAuditOnMainScreens() throws {
         XCTAssertTrue(app.descendants(matching: .any)["sidebar.newTab"].waitForExistence(timeout: 10))
         let ignoreSystemChrome: (XCUIAccessibilityAuditIssue) -> Bool = { issue in
@@ -55,7 +55,7 @@ final class SmokeTests: NeraUITestCase {
                 element.elementType == .group && abs(element.frame.width - window.width) < 1
                 && abs(element.frame.height - window.height) < 60
             let isMenuButtonAction = element.elementType == .menuButton && issue.auditType == .action
-            let isTitleBarChrome = element.frame.maxY <= window.minY + 30
+            let isTitleBarChrome = element.frame.maxY <= window.minY + 50  // the title bar holds the window buttons where Arc has them
             // Elements outside the window aren't Nera's: the Touch Bar macOS keeps for text fields (and its emoji
             // button), which Macs without a Touch Bar never show.
             let isOutsideWindow = !element.frame.intersects(window)
