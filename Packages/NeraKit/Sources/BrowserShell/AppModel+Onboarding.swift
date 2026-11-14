@@ -71,6 +71,21 @@ extension AppModel {
             return ArcColors.cache?.themes[spaceID]
         }
 
+        /// Spaces imported from Arc before Nera read whether Arc draws their text white: reads it from Arc's file
+        /// (the same Space by ID, with the same color), so their sidebar looks as it does in Arc. Local file only.
+        public func adoptArcContentColors() {
+            guard isArcInstalled, !isPrivate else { return }
+            for space in state.spaces {
+                guard let exact = space.theme.exact, exact.textOnColor == nil,
+                    let fromArc = arcTheme(for: space.id)?.exact?.textOnColor,
+                    arcTheme(for: space.id)?.exact?.base == exact.base
+                else { continue }
+                var theme = space.theme
+                theme.exact?.textOnColor = fromArc
+                send(.space(.customize(space.id, icon: nil, theme: theme)))
+            }
+        }
+
         /// Arc's Space colors, read once per change of Arc's file.
         @MainActor private enum ArcColors {
             static var cache: (modified: Date, themes: [UUID: SpaceTheme])?

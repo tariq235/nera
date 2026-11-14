@@ -155,11 +155,9 @@ struct FavoriteTile: View {
         .accessibilityIdentifier("sidebar.favorite")
     }
 
-    /// The Favorite's own site's icon: the live page's while it's on that site, the cached one while it's elsewhere.
-    private var icon: Data? {
-        guard let home = tab.homeURL, let current = tab.url, home.host() != current.host() else { return host.favicon(for: tab) }
-        return host.favicon(forURL: home) ?? host.favicon(for: tab)
-    }
+    /// The icon of the page the Favorite is on, as in Arc: a Favorite for twitter.com that's now on x.com shows X's
+    /// current icon, not the one twitter.com had years ago.
+    private var icon: Data? { host.favicon(for: tab) }
 
     @ViewBuilder private var peekBadge: some View {
         if let peek = host.peekOpened(from: tab.id) {
@@ -184,7 +182,7 @@ struct TabIcon: View {
         if let emoji = tab.customIcon, !emoji.isEmpty {
             Text(emoji).font(.system(size: size)).frame(width: size + 4, height: size + 4).accessibilityHidden(true)
         } else {
-            SiteIcon(url: tab.homeURL ?? tab.url, size: size, png: png)
+            SiteIcon(url: tab.url ?? tab.homeURL, size: size, png: png)
         }
     }
 }

@@ -67,8 +67,9 @@
                         tab("https://www.swift.org/documentation/", "Documentation | Swift.org"),
                     ])))
             let palette = SpaceTheme.palette
+            let firstTheme = CommandLine.arguments.contains("--arc-theme") ? arcStyleTheme : palette[0].theme
             let home = Space(
-                id: UUID(), title: "Personal", icon: palette[0].icon, theme: palette[0].theme, profileID: personal.id,
+                id: UUID(), title: "Personal", icon: palette[0].icon, theme: firstTheme, profileID: personal.id,
                 pinned: [reading, .tab(tab("https://music.apple.com", "Apple Music", home: true))],
                 today: [
                     .tab(hero), split, .tab(tab("https://www.nytimes.com", "The New York Times")),
@@ -295,4 +296,14 @@
             return (try? png.write(to: url)) != nil
         }
     }
+#endif
+
+#if DEBUG && os(macOS)
+    /// --arc-theme: a Space that looks like one brought over from Arc (exact color, white text).
+    private let arcStyleTheme: SpaceTheme = {
+        let exact = ExactColors(
+            base: RGBA(red: 0.13, green: 0.38, blue: 0.29), intensity: 0.8, focusLight: RGBA(red: 0.57, green: 0.69, blue: 0.64),
+            focusDark: RGBA(red: 0.3, green: 0.5, blue: 0.43), textOnColor: .white)
+        return SpaceTheme(hue: exact.base.hsb.hue, saturation: exact.base.hsb.saturation, appearance: .system, exact: exact)
+    }()
 #endif

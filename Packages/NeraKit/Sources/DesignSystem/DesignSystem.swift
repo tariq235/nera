@@ -12,6 +12,12 @@ public enum Theme {
         SpaceBackground(theme: theme ?? .default).ignoresSafeArea()
     }
 
+    /// Light or dark for the sidebar's text and controls over a Space's backdrop: dark (white text) when the Space
+    /// came from Arc with white content, even while the window is light; otherwise the window's own.
+    public static func contentScheme(for theme: SpaceTheme?, in scheme: ColorScheme) -> ColorScheme {
+        theme?.exact?.textOnColor == .white ? .dark : scheme
+    }
+
     /// The Space's accent: buttons, highlights and the start page.
     public static func accent(for theme: SpaceTheme?) -> Color {
         let t = theme ?? .default
@@ -180,17 +186,18 @@ public struct SpaceBackground: View {
     }
 
     /// A Space imported with its exact color (Arc): the color tints a light or dark window by its intensity, as in
-    /// Arc (measured against Arc's own windows), with the faintest fall of light across it.
+    /// Arc (measured against Arc's own windows). In light appearance Arc's backdrop is one flat color.
     static func exactColors(_ exact: ExactColors, dark: Bool) -> [Color] {
-        let weight = min(max(exact.intensity * 0.75, 0), 1)
-        let under = dark ? RGBA(red: 0.08, green: 0.08, blue: 0.08) : RGBA(red: 0.88, green: 0.88, blue: 0.88)
-        let base = dark ? exact.base.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.35) : exact.base
-        let tone = under.mixed(with: base, weight)
         func color(_ c: RGBA) -> Color { Color(.sRGB, red: c.red, green: c.green, blue: c.blue) }
-        return [
-            color(tone.mixed(with: .white, dark ? 0.02 : 0.05)), color(tone),
-            color(tone.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.04)),
-        ]
+        if !dark {
+            let weight = min(max(exact.intensity * 0.775, 0), 1)
+            let tone = RGBA(red: 0.885, green: 0.885, blue: 0.885).mixed(with: exact.base, weight)
+            return [color(tone), color(tone)]
+        }
+        let weight = min(max(exact.intensity * 0.75, 0), 1)
+        let tone = RGBA(red: 0.08, green: 0.08, blue: 0.08).mixed(
+            with: exact.base.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.35), weight)
+        return [color(tone.mixed(with: .white, 0.02)), color(tone), color(tone.mixed(with: RGBA(red: 0, green: 0, blue: 0), 0.04))]
     }
 
     /// The backdrop.
@@ -261,9 +268,10 @@ public enum Surface {
         case (.resting, false): .white.opacity(0.34)
         case (.hover, false): .white.opacity(0.26)
         case (.selected, false): .white.opacity(0.72)
-        case (.resting, true): .white.opacity(0.08)
-        case (.hover, true): .white.opacity(0.07)
-        case (.selected, true): .white.opacity(0.17)
+        // White over the Space's color, as Arc draws it wherever its text is white (measured: 10% and 20%).
+        case (.resting, true): .white.opacity(0.10)
+        case (.hover, true): .white.opacity(0.08)
+        case (.selected, true): .white.opacity(0.20)
         }
     }
 }

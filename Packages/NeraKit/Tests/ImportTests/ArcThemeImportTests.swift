@@ -15,25 +15,23 @@ struct ArcThemeImportTests {
         ["red": r, "green": g, "blue": b, "alpha": a, "colorSpace": "extendedSRGB"]
     }
 
-    func windowTheme(base: [String: Any], intensity: Double = 0.7, focusLight: [String: Any]? = nil) -> [String: Any] {
-        var theme: [String: Any] = [
-            "background": [
-                "single": [
+    func windowTheme(
+        base: [String: Any], intensity: Double = 0.7, focusLight: [String: Any]? = nil, content: String? = nil
+    ) -> [String: Any] {
+        var single: [String: Any] = [
+            "isVibrant": true,
+            "style": [
+                "color": [
                     "_0": [
-                        "isVibrant": true,
-                        "style": [
-                            "color": [
-                                "_0": [
-                                    "blendedSingleColor": [
-                                        "_0": ["color": base, "modifiers": ["intensityFactor": intensity, "noiseFactor": 0]]
-                                    ]
-                                ]
-                            ]
-                        ],
+                        "blendedSingleColor": [
+                            "_0": ["color": base, "modifiers": ["intensityFactor": intensity, "noiseFactor": 0]]
+                        ]
                     ]
                 ]
-            ]
+            ],
         ]
+        if let content { single["contentOverBackgroundAppearance"] = content }
+        var theme: [String: Any] = ["background": ["single": ["_0": single]]]
         if let focusLight {
             theme["semanticColorPalette"] = [
                 "appearanceBased": ["light": ["focus": focusLight], "dark": ["focus": color(0.3, 0.3, 0.3, 0.8)]]
@@ -52,6 +50,23 @@ struct ArcThemeImportTests {
         #expect(exact.focusDark == RGBA(red: 0.3, green: 0.3, blue: 0.3, alpha: 0.8))
         // Editing in Nera starts from the same color.
         #expect(abs(theme.hue - 0.4167) < 0.001 && abs(theme.saturation - 0.5) < 0.001)
+    }
+
+    @Test func whiteContentComesOverFromArc() throws {
+        let white = try #require(ArcImporter.theme(fromArc: windowTheme(base: color(0.2, 0.4, 0.3), content: "dark"))?.exact)
+        #expect(white.textOnColor == .white)
+        let dark = try #require(ArcImporter.theme(fromArc: windowTheme(base: color(0.2, 0.4, 0.3), content: "light"))?.exact)
+        #expect(dark.textOnColor == .dark)
+        let unknown = try #require(ArcImporter.theme(fromArc: windowTheme(base: color(0.2, 0.4, 0.3)))?.exact)
+        #expect(unknown.textOnColor == nil)
+    }
+
+    @Test func spacesSavedBeforeWhiteContentStillLoad() throws {
+        let old =
+            #"{"base":{"red":0.2,"green":0.4,"blue":0.3,"alpha":1},"intensity":0.8,"#
+            + #""focusLight":{"red":0.6,"green":0.7,"blue":0.65,"alpha":1},"focusDark":{"red":0.3,"green":0.3,"blue":0.3,"alpha":1}}"#
+        let exact = try JSONDecoder().decode(ExactColors.self, from: Data(old.utf8))
+        #expect(exact.textOnColor == nil && exact.intensity == 0.8)
     }
 
     @Test func withoutAPaletteSelectionsAreDerivedFromTheColor() throws {

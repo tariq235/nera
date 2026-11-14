@@ -8,6 +8,7 @@ import SwiftUI
 /// The browser's sidebar, with the update card and what's playing at its foot.
 struct BrowserSidebar: View {
     let model: AppModel
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,6 +22,9 @@ struct BrowserSidebar: View {
                     })
             )
         }
+        // White text and controls over Spaces whose colors came from Arc with white content (the backdrop behind
+        // keeps the window's appearance).
+        .environment(\.colorScheme, Theme.contentScheme(for: model.displayedTheme, in: scheme))
     }
 }
 
