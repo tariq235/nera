@@ -115,13 +115,16 @@ jobs:
           rm build/out/Nera.zip
 
       - name: Disk image
+        timeout-minutes: 20
         run: |
+          # Signing gets 5 minutes a try and up to 3 tries: Apple's timestamp server once left codesign waiting an hour.
+          try() { for n in 1 2 3; do perl -e 'alarm shift; exec @ARGV' 300 "$@" && return 0; echo "⚠ try $n failed: $1"; sleep 15; done; return 1; }
           DMG="build/out/Nera-$VERSION.dmg"; echo "DMG=$DMG" >> "$GITHUB_ENV"
           # This version's CHANGELOG section goes into the disk image as its release notes.
           awk -v v="## ${VERSION} " 'index($0, v) == 1 { n = 1; next } /^## / { n = 0 } n' CHANGELOG.md > "$RUNNER_TEMP/notes.txt"
           [ -s "$RUNNER_TEMP/notes.txt" ] || { echo "::error::CHANGELOG.md has no '## $VERSION' section"; exit 1; }
           ./scripts/release/build-dmg.sh build/out/Nera.app "$VERSION" "$RUNNER_TEMP/notes.txt" "$DMG"
-          if [ "$DRY_RUN" != "true" ]; then codesign --sign "$SIGN_IDENTITY" --timestamp "$DMG"; fi
+          if [ "$DRY_RUN" != "true" ]; then try codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"; fi
 
       - name: Notarize & staple the disk image
         if: env.DRY_RUN != 'true'

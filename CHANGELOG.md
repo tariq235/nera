@@ -4,6 +4,17 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.9 — 2026-11-14
+
+- **Your Arc colors, exactly:** Spaces brought over from Arc now look as they do in Arc: the same flat color behind
+  the sidebar, white text and icons where Arc draws them white, and Arc's faint glass tiles and address bar. Spaces
+  you already imported pick this up on their own.
+
+### Fixed
+
+- A Favorite showed the icon its first address had years ago (the old bird for a Favorite saved as twitter.com, now
+  x.com). Favorites now show the icon of the page they're on, as in Arc.
+
 ## 0.1.8 — 2026-11-12
 
 - **Drag Favorites and Spaces:** drag a Favorite to reorder it, drop a tab on a Favorite to make it one at that place,

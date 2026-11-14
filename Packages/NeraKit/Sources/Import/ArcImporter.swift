@@ -306,6 +306,11 @@ extension ArcImporter {
         var colors = ExactColors(base: base, intensity: intensity)
         if let focus = rgba(light) { colors.focusLight = focus }
         if let focus = rgba(dark) { colors.focusDark = focus }
+        switch first("contentOverBackgroundAppearance", in: background) as? String {
+        case "dark"?: colors.textOnColor = .white  // Arc styles the content for a dark backdrop: white text
+        case "light"?: colors.textOnColor = .dark
+        default: break
+        }
         let hsb = base.hsb
         return SpaceTheme(
             hue: hsb.hue, saturation: hsb.saturation, appearance: .system, grain: noise > 0.01 ? noise : nil, exact: colors)

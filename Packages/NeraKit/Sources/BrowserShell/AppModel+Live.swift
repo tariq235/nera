@@ -85,7 +85,10 @@ extension AppModel {
         if safeMode { model.enterSafeMode() }
         #if os(macOS)
             if !isUITest, !isBenchmark, !safeMode, !model.isWelcomePresented { DefaultBrowser.offerOnce(to: model) }
-            if !isUITest, !isBenchmark { model.fillMissingIconsFromArc() }
+            if !isUITest, !isBenchmark {
+                model.fillMissingIconsFromArc()
+                model.adoptArcContentColors()
+            }
         #endif
         if !isUITest, !isBenchmark { model.checkForUpdates() }
         Task {

@@ -72,13 +72,25 @@ public struct ExactColors: Codable, Hashable, Sendable {
     public var focusLight: RGBA
     /// The selection color in dark appearance.
     public var focusDark: RGBA
+    /// The color of text and controls over the Space's color in light appearance: white for Spaces Arc styles
+    /// that way. Nil for Spaces imported before Nera read this (dark text until it's read again from Arc).
+    public var textOnColor: TextTone?
+
+    /// Text color over a Space's color.
+    public enum TextTone: String, Codable, Sendable {
+        /// White text and controls.
+        case white
+        /// Dark text and controls.
+        case dark
+    }
 
     /// Creates exact colors.
-    public init(base: RGBA, intensity: Double, focusLight: RGBA, focusDark: RGBA) {
+    public init(base: RGBA, intensity: Double, focusLight: RGBA, focusDark: RGBA, textOnColor: TextTone? = nil) {
         self.base = base
         self.intensity = intensity
         self.focusLight = focusLight
         self.focusDark = focusDark
+        self.textOnColor = textOnColor
     }
 
     /// Exact colors for a base color, with selections derived the way Arc derives them: half white in light
@@ -92,6 +104,7 @@ public struct ExactColors: Codable, Hashable, Sendable {
     func blended(toward other: ExactColors, by t: Double) -> ExactColors {
         ExactColors(
             base: base.mixed(with: other.base, t), intensity: intensity + (other.intensity - intensity) * t,
-            focusLight: focusLight.mixed(with: other.focusLight, t), focusDark: focusDark.mixed(with: other.focusDark, t))
+            focusLight: focusLight.mixed(with: other.focusLight, t), focusDark: focusDark.mixed(with: other.focusDark, t),
+            textOnColor: t < 0.5 ? textOnColor : other.textOnColor)
     }
 }

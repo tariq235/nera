@@ -95,7 +95,8 @@ let package = Package(
         .testTarget(
             name: "BrowserShellTests",
             dependencies: [
-                "BrowserShell", "BrowserCore", "CommandBar", "PageLifecycle", "Storage", "TestSupport", "EngineTestSupport", "SafeBrowsing",
+                "BrowserShell", "BrowserCore", "CommandBar", "DesignSystem", "PageLifecycle", "Storage", "TestSupport", "EngineTestSupport",
+                "SafeBrowsing",
             ]),
         .testTarget(name: "ExtensionsTests", dependencies: ["Extensions"]),
         .testTarget(name: "SafeBrowsingTests", dependencies: ["SafeBrowsing"], resources: [.copy("Fixtures")]),
