@@ -4,6 +4,15 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.10 — 2026-11-14
+
+- **The sidebar, measured against Arc:** the window's buttons, the top bar, the address bar, Favorites, the Space's
+  name and every tab row now sit where Arc puts them, at Arc's sizes: 14 pt text, roomier rows, a taller address bar,
+  smaller icons in Favorites.
+- **Favorites light up under the pointer**, and an open Favorite you've left shows a dot, as in Arc.
+- **Less clutter, as in Arc:** Copy Link and the site controls show when the pointer is on the address bar, the Space
+  menu (…) when it's on the Space's name, and Clear when it's on the line above Today's tabs.
+
 ## 0.1.9 — 2026-11-14
 
 - **Your Arc colors, exactly:** Spaces brought over from Arc now look as they do in Arc: the same flat color behind

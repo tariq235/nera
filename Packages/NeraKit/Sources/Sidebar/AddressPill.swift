@@ -10,6 +10,7 @@ struct AddressPill: View {
     let host: any SidebarHost
     var siteInfo: (() -> AnyView)?
     @State private var copied = false
+    @State private var isHovering = false
 
     private var isWebPage: Bool {
         guard let scheme = host.addressURL?.scheme?.lowercased() else { return false }
@@ -27,8 +28,8 @@ struct AddressPill: View {
                     Text("Exit Full Screen")
                     Spacer()
                 }
-                .font(.system(size: 13))
-                .padding(.horizontal, 10).padding(.vertical, 8)
+                .font(.system(size: Metrics.addressFont))
+                .padding(.horizontal, 10).frame(height: Metrics.addressHeight)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -52,12 +53,13 @@ struct AddressPill: View {
                     Image(systemName: copied ? "checkmark" : "link")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.primary.opacity(copied ? 0.8 : 0.55))
-                        .frame(width: 26, height: 32)
+                        .frame(width: 26, height: Metrics.addressHeight)
                         .contentShape(Rectangle())
                         .contentTransition(.symbolEffect(.replace))
                 }
                 .buttonStyle(.plain)
                 .help("Copy Link (⇧⌘C)")
+                .opacity(showsButtons ? 1 : 0)
                 .accessibilityLabel(copied ? "Link copied" : "Copy Link")
                 .accessibilityIdentifier("sidebar.copyLink")
             }
@@ -68,11 +70,12 @@ struct AddressPill: View {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Color.primary.opacity(0.55))
-                        .frame(width: 28, height: 32)
+                        .frame(width: 28, height: Metrics.addressHeight)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .padding(.trailing, 4)
+                .opacity(showsButtons ? 1 : 0)
                 .help("Site controls: share, customize, capture, permissions")
                 .accessibilityLabel("Site controls")
                 .accessibilityIdentifier("sidebar.siteInfo")
@@ -83,7 +86,11 @@ struct AddressPill: View {
             }
         }
         .surface(.resting, cornerRadius: 10)
+        .onHover { isHovering = $0 }
     }
+
+    /// As in Arc, Copy Link and the site controls show while the pointer is on the address bar (or one is in use).
+    private var showsButtons: Bool { isHovering || copied || host.isSiteControlsPresented }
 
     private var urlButton: some View {
         Button {
@@ -101,11 +108,11 @@ struct AddressPill: View {
                 }
                 Text(text.isEmpty ? "Search or enter URL" : text)
                     .lineLimit(1)
-                    .foregroundStyle(host.state.selectedTab == nil ? .secondary : .primary)
+                    .foregroundStyle(host.state.selectedTab == nil ? .secondary : Color.primary.opacity(0.8))
                 Spacer()
             }
-            .font(.system(size: 13))
-            .padding(.leading, 10).padding(.trailing, 6).padding(.vertical, 8)
+            .font(.system(size: Metrics.addressFont))
+            .padding(.leading, 10).padding(.trailing, 6).frame(height: Metrics.addressHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

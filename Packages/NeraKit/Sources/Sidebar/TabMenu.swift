@@ -103,18 +103,29 @@ struct FavoriteTile: View {
     @State private var isChangingIcon = false
     /// Something is dragged over the tile: it would land just before it.
     @State private var isDropTarget = false
+    @State private var isHovering = false
+
+    private var isSelected: Bool { host.state.selectedTabID == tab.id }
 
     var body: some View {
         Button {
             host.send(.tab(.select(tab.id)))
         } label: {
-            TabIcon(tab: tab, size: 20, png: icon)
-                .frame(maxWidth: .infinity, minHeight: 46)
+            TabIcon(tab: tab, size: Metrics.tileIcon, png: icon)
+                .overlay {
+                    // As in Arc: a dot beside the icon while the Favorite is open but you're elsewhere.
+                    if host.isLoaded(tab.id), !isSelected {
+                        Circle().fill(.primary).frame(width: 5, height: 5).offset(x: 15.5, y: 13.5)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: Metrics.tileHeight)
                 .overlay(alignment: .topTrailing) { peekBadge }
                 .contentShape(Rectangle())
-                .surface(host.state.selectedTabID == tab.id ? .selected : .resting, cornerRadius: 11)
+                .surface(isSelected ? .selected : (isHovering ? .raised : .resting), cornerRadius: 11)
         }
         .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
         .overlay(alignment: .bottomTrailing) { TabSoundButton(host: host, tab: tab, isBadge: true).offset(x: -4, y: -4) }
         .overlay(alignment: .leading) {
             if isDropTarget {

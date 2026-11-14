@@ -38,6 +38,8 @@ public protocol SidebarHost: AnyObject {
     func arcTheme(for spaceID: UUID) -> SpaceTheme?
     /// Whether the tab's page is playing sound, and whether it's muted (the tab menu's Mute).
     func audio(of tabID: UUID) -> (playing: Bool, muted: Bool)
+    /// Whether the tab's page is open in memory (Favorites show a dot then, as in Arc).
+    func isLoaded(_ tabID: UUID) -> Bool
     /// Mutes or unmutes the tab's page.
     func toggleMute(_ tabID: UUID)
     /// Opens the tab and its Customize Page panel (fonts and colors for the site).
@@ -96,6 +98,8 @@ extension SidebarHost {
     public func arcTheme(for spaceID: UUID) -> SpaceTheme? { nil }
     /// Silent unless the host knows better.
     public func audio(of tabID: UUID) -> (playing: Bool, muted: Bool) { (false, false) }
+    /// Default: no page is open.
+    public func isLoaded(_ tabID: UUID) -> Bool { false }
     /// Nothing to mute by default.
     public func toggleMute(_ tabID: UUID) {}
     /// No page styles by default.

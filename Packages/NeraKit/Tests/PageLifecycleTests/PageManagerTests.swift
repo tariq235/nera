@@ -81,6 +81,20 @@ struct PageManagerTests {
         #expect(f.manager.existingPage(for: c.id) != nil)
     }
 
+    @Test func loadedTabsFollowThePagesInMemory() {
+        let f = Fixture(maxLivePages: 2)
+        let a = f.tab()
+        let b = f.tab()
+        let c = f.tab()
+        f.show(a)
+        f.env.now += 1
+        f.show(b)
+        #expect(f.manager.loadedTabIDs == [a.id, b.id])  // the open-Favorite dot
+        f.env.now += 1
+        f.show(c)  // a is evicted
+        #expect(f.manager.loadedTabIDs == [b.id, c.id])
+    }
+
     @Test func memoryPressureFreesBackgroundPages() {
         let f = Fixture()
         let tabs = (0..<5).map { _ in f.tab() }
