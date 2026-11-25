@@ -249,10 +249,10 @@ private struct FileThumbnail: View {
     var body: some View {
         Group {
             if let image {
-                image.resizable().aspectRatio(contentMode: .fit)
+                image.resizable().scaledToFit()
             } else {
                 #if os(macOS)
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().aspectRatio(contentMode: .fit)
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().scaledToFit()
                 #else
                     Image(systemName: "doc")
                 #endif
