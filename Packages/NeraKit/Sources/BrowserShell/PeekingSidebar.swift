@@ -19,7 +19,11 @@ struct BrowserSidebar: View {
                     VStack(spacing: 8) {
                         UpdateCard(model: model)
                         MiniPlayer(model: model)
-                    })
+                        if model.isDownloadsTrayPresented {
+                            DownloadsTray(model: model).transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }),
+                leadingAccessory: AnyView(DownloadsButton(model: model))
             )
         }
         // White text and controls over Spaces whose colors came from Arc with white content (the backdrop behind

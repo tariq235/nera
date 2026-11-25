@@ -101,7 +101,10 @@ public struct RootView: View {
     /// The page's corner radius.
     static let pageRadius: CGFloat = 12
     /// The sidebar's width range when dragging its edge, and its width until then.
-    static let sidebarWidths: ClosedRange<CGFloat> = 200...420
+    /// (At its narrowest the window's buttons and the top bar's buttons still fit side by side.)
+    static let sidebarWidths: ClosedRange<CGFloat> = 225...420
+    /// Dragging the sidebar's edge this far past its narrowest hides the sidebar, as in Arc.
+    static let sidebarCollapseOvershoot: CGFloat = 60
     static let defaultSidebarWidth: CGFloat = 260
     /// Showing and hiding the sidebar: one motion for the sidebar and the page, without overshoot (a bounce would
     /// open a gap beside the page).
@@ -123,6 +126,13 @@ public struct RootView: View {
                         .onChanged { drag in
                             let start = dragStartWidth ?? sidebarWidth
                             dragStartWidth = start
+                            guard model.isSidebarVisible else { return }
+                            if start + drag.translation.width < Self.sidebarWidths.lowerBound - Self.sidebarCollapseOvershoot {
+                                storedSidebarWidth = Double(start)  // it comes back at the width it had
+                                dragStartWidth = nil
+                                model.isSidebarVisible = false
+                                return
+                            }
                             let width = min(
                                 max(start + drag.translation.width, Self.sidebarWidths.lowerBound), Self.sidebarWidths.upperBound)
                             var still = Transaction()
@@ -272,6 +282,16 @@ struct ContentArea: View {
                 StartPage(model: model)
             }
         }
+        #if os(macOS)
+            // A tab dragged from the sidebar onto the page: drop it on the left or right half for Split View.
+            .overlay {
+                if let dragged = model.draggingTabID, let beside = model.state.selectedTabID, dragged != beside,
+                    model.state.selectedSplit?.tabs.contains(where: { $0.id == dragged }) != true
+                {
+                    SplitDropZone(model: model, dragged: dragged, beside: beside)
+                }
+            }
+        #endif
         .overlay(alignment: .topTrailing) {
             if model.isFindBarPresented, model.selectedPage != nil, model.currentRequest == nil { FindBar(model: model) }
         }
@@ -471,7 +491,6 @@ struct SidebarAccessories: View {
             #if os(macOS)
                 ExtensionsButton(model: model)
             #endif
-            DownloadsButton(model: model)
         }
     }
 }

@@ -33,6 +33,9 @@ public enum TabAction: Equatable, Sendable {
     case moveNode(UUID, to: NodeDestination)
     /// Show tab `other` in Split View with `id` (both in the same Space). `other` moves into `id`'s split.
     case splitWith(UUID, other: UUID)
+    /// A sidebar tab dropped on the page of tab `beside`, as in Arc: the two show in Split View, the dropped one on
+    /// the left when `leading`, else on the right. A Favorite's page joins as a copy (the Favorite stays put).
+    case dropIntoSplit(UUID, beside: UUID, leading: Bool)
     /// Take a tab out of its split; a split left with one tab becomes a plain tab.
     case removeFromSplit(UUID)
     /// Separate every tab of the split containing this tab.

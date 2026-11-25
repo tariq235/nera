@@ -33,7 +33,8 @@ SAME_LAYER_OK = {
     ("WebKitEngine", "EngineKit"), ("ChromiumEngine", "EngineKit"),
     ("Sidebar", "DesignSystem"), ("CommandBar", "DesignSystem"),
 }
-UI = {"Foundation", "Observation", "SwiftUI", "AppKit", "UIKit", "UniformTypeIdentifiers", "ServiceManagement"}
+# QuickLookThumbnailing: file previews on the downloads shelf (local, no network).
+UI = {"Foundation", "Observation", "SwiftUI", "AppKit", "UIKit", "UniformTypeIdentifiers", "ServiceManagement", "QuickLookThumbnailing"}
 FRAMEWORKS = {
     "BrowserCore": {"Foundation", "Observation"},
     "BrowserData": {"Foundation", "SQLite3", "CommonCrypto", "CryptoKit", "Security"},

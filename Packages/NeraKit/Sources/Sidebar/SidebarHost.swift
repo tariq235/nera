@@ -40,6 +40,8 @@ public protocol SidebarHost: AnyObject {
     func audio(of tabID: UUID) -> (playing: Bool, muted: Bool)
     /// Whether the tab's page is open in memory (Favorites show a dot then, as in Arc).
     func isLoaded(_ tabID: UUID) -> Bool
+    /// The tab being dragged from the sidebar (nil when the drag ends), so the page can take it into Split View.
+    var draggingTabID: UUID? { get set }
     /// Mutes or unmutes the tab's page.
     func toggleMute(_ tabID: UUID)
     /// Opens the tab and its Customize Page panel (fonts and colors for the site).
@@ -100,6 +102,11 @@ extension SidebarHost {
     public func audio(of tabID: UUID) -> (playing: Bool, muted: Bool) { (false, false) }
     /// Default: no page is open.
     public func isLoaded(_ tabID: UUID) -> Bool { false }
+    /// Default: drags aren't tracked.
+    public var draggingTabID: UUID? {
+        get { nil }
+        set {}  // swiftlint:disable:this unused_setter_value
+    }
     /// Nothing to mute by default.
     public func toggleMute(_ tabID: UUID) {}
     /// No page styles by default.

@@ -4,6 +4,20 @@ All notable changes to Nera are listed here, newest first ([Keep a Changelog](ht
 
 ## Unreleased
 
+## 0.1.11 — 2026-11-25
+
+- **Drag a tab onto the page for Split View:** hold it over the left or right half and the page makes room on that
+  side; let go and both show side by side. While you drag in the sidebar, the tabs slide apart to show where it
+  will land.
+- **Downloads shelf:** the button at the left of the bottom bar shows your latest downloads with previews, newest at
+  the bottom. Click one to open it, or drag it anywhere. The Spaces now sit in the middle of the bottom bar.
+- **Favorites keep their site:** typing another site's address while on a Favorite opens it in a new tab, and
+  closing a Favorite sends it back to its own page.
+- **Spaces menu** marks the Space you're in.
+- **Hide the sidebar by dragging its edge** all the way to the left. Its narrowest width now always leaves room for
+  the window's buttons.
+- Switching Spaces with a two-finger swipe is quicker.
+
 ## 0.1.10 — 2026-11-14
 
 - **The sidebar, measured against Arc:** the window's buttons, the top bar, the address bar, Favorites, the Space's

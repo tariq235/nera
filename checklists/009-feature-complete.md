@@ -54,6 +54,10 @@ Order of work: [roadmap](../docs/roadmap.md).
 - [x] **FEAT-082** A tab dragged out of the window opens in a window of its own where it's dropped; clicks, menus and drags in the sidebar keep working — P1 · owner: nera · evidence: test:NeraUITests/testATabDraggedOutOfTheWindowOpensInItsOwn, test:BrowserShellTests/aTabDraggedOutOpensInAWindowOfItsOwn, test:NeraUITests/testDraggingReordersPinnedTabs
 - [x] **FEAT-083** Spaces brought over from Arc look as they do in Arc: the same flat color, white text and icons where Arc draws them white, and Arc's faint glass tiles — P1 · owner: nera · evidence: test:ImportTests/whiteContentComesOverFromArc, test:ImportTests/spacesSavedBeforeWhiteContentStillLoad, test:BrowserShellTests/arcSpacesWithWhiteContentGetWhiteTextInLightMode
 - [x] **FEAT-084** The sidebar matches Arc's layout and sizes; Favorites highlight under the pointer and show a dot while open in the background — P1 · owner: nera · evidence: test:PageLifecycleTests/loadedTabsFollowThePagesInMemory, test:NeraUITests/testDraggingReordersPinnedTabs
+- [x] **FEAT-085** A sidebar tab dropped on the page's left or right half opens Split View on that side; rows part to show where a dragged tab lands — P1 · owner: nera · evidence: test:NeraUITests/testATabDroppedOnThePageOpensSplitView, test:BrowserCoreTests/aTabDroppedOnThePageJoinsItInSplitViewOnThatSide
+- [x] **FEAT-086** Favorites and pinned tabs keep their site (another site opens a new tab) and go back to their own page when closed — P1 · owner: nera · evidence: test:BrowserCoreTests/anotherSiteTypedOnAFavoriteOpensANewTab, test:BrowserCoreTests/closingAFavoriteSendsItBackToItsOwnPage
+- [x] **FEAT-087** Downloads shelf in the sidebar: the latest downloads with previews, open on click, drag out — P2 · owner: nera · evidence: test:NeraUITests/testDownloadAppearsInTrayAndCanBeCleared
+- [x] **FEAT-088** Dragging the sidebar's edge far to the left hides the sidebar — P2 · owner: nera · evidence: test:NeraUITests/testDraggingTheSidebarEdgeFarLeftHidesIt
 
 ## Must-have to switch (after the release gate)
 
