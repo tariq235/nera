@@ -8,7 +8,7 @@ extension Reducer {
         switch action {
         case .open(let url, let disposition): open(&state, url, disposition, env)
         case .moveNode(let id, let destination): moveNode(&state, id, to: destination, env)
-        case .splitWith, .removeFromSplit, .unsplit, .setSplitAxis, .splitBesideCopy: reduceSplit(&state, action, env)
+        case .splitWith, .removeFromSplit, .unsplit, .setSplitAxis, .splitBesideCopy, .dropIntoSplit: reduceSplit(&state, action, env)
         case .openChild(let id, let url, let openerID, let select):
             openChild(&state, id: id, url: url, openerID: openerID, select: select, env)
         case .select(let id): select(&state, id, env)
@@ -54,6 +54,7 @@ extension Reducer {
                 }
             }
         case .splitBesideCopy(let id, let source): splitBesideCopy(&state, id, of: source, env)
+        case .dropIntoSplit(let id, let beside, let leading): dropIntoSplit(&state, id, beside: beside, leading: leading, env)
         default: []
         }
     }
@@ -83,6 +84,41 @@ extension Reducer {
         state.selectedSpaceID = spaceID
         state.selectedTabID = id
         return [.load(tabID: copy.id, url: url)]
+    }
+
+    private static func dropIntoSplit(
+        _ state: inout BrowserState, _ id: UUID, beside: UUID, leading: Bool, _ env: ReducerEnvironment
+    ) -> [Effect] {
+        guard id != beside, let location = state.locate(beside)?.location else { return [] }
+        var effects: [Effect] = []
+        if case .favorite = location {
+            effects = splitBesideCopy(&state, id, of: beside, env)  // the copy on the left, the dropped tab on the right
+            guard !effects.isEmpty else { return [] }
+            if leading { moveInSplit(&state, id, toFront: true) }
+        } else {
+            guard let space = state.selectedSpace,
+                (space.pinned + space.today).split(containing: beside)?.tabs.contains(where: { $0.id == id }) != true
+            else { return [] }  // already side by side
+            _ = splitWith(&state, beside, other: id)
+            guard let after = state.selectedSpace, (after.pinned + after.today).split(containing: id) != nil else { return [] }
+            if leading { moveInSplit(&state, id, before: beside) }
+        }
+        state.selectedTabID = id
+        mutateTab(&state, id) { $0.lastActiveAt = env.now() }
+        return effects
+    }
+
+    /// Moves tab `id` within its split: to the front, or just before `target`.
+    private static func moveInSplit(_ state: inout BrowserState, _ id: UUID, toFront: Bool = false, before target: UUID? = nil) {
+        _ = editSplits(&state) {
+            $0.updateSplit(containing: id) { split in
+                guard let from = split.tabs.firstIndex(where: { $0.id == id }) else { return true }
+                let tab = split.tabs.remove(at: from)
+                let to = toFront ? 0 : (target.flatMap { t in split.tabs.firstIndex { $0.id == t } } ?? split.tabs.count)
+                split.tabs.insert(tab, at: to)
+                return true
+            }
+        }
     }
 
     private static func makeCurrentPageHome(_ state: inout BrowserState, _ id: UUID) -> [Effect] {
@@ -227,7 +263,9 @@ extension Reducer {
     private static func open(_ state: inout BrowserState, _ url: URL, _ disposition: TabAction.Disposition, _ env: ReducerEnvironment)
         -> [Effect]
     {
-        if disposition == .currentTab, let id = state.selectedTabID, state.tab(withID: id) != nil {
+        if disposition == .currentTab, let id = state.selectedTabID, let current = state.tab(withID: id),
+            !leavesItsSite(current, for: url)
+        {
             mutateTab(&state, id) {
                 $0.url = url
                 $0.lastActiveAt = env.now()
@@ -255,6 +293,16 @@ extension Reducer {
         state.spaces[si].today.insert(.tab(tab), at: 0)
         state.selectedTabID = tab.id
         return [.load(tabID: tab.id, url: url)]
+    }
+
+    /// A Favorite or pinned tab keeps its site, as in Arc: an address for another site, typed while on it, opens in
+    /// a new tab instead.
+    private static func leavesItsSite(_ tab: Tab, for url: URL) -> Bool {
+        guard let home = tab.homeURL else { return false }
+        func site(_ u: URL) -> String? {
+            u.host()?.lowercased().replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression)
+        }
+        return site(home) != site(url)
     }
 
     /// Child pages are already loading in the engine, so no `.load` effect.
@@ -301,6 +349,12 @@ extension Reducer {
         let neighbor = neighborForSelection(state, closing: id)
         switch location {
         case .favorite, .space(_, .pinned):
+            // As in Arc, the Favorite or pinned tab goes back to its own page, to load there when you next open it.
+            mutateTab(&state, id) { tab in
+                guard let home = tab.homeURL, tab.url != home else { return }
+                if tab.url?.host() != home.host() { tab.title = "" }
+                tab.url = home
+            }
             if state.selectedTabID == id { state.selectedTabID = neighbor }
             return [.discardPage(tabID: id)]
         case .space(let spaceID, .today):

@@ -9,6 +9,7 @@ import SwiftUI
 struct SpaceSwitcher: View {
     let host: any SidebarHost
     var accessory = AnyView(EmptyView())
+    var leading = AnyView(EmptyView())
 
     /// "Work" or, with several profiles, "Work · Work profile".
     private func spaceHelp(_ space: Space) -> String {
@@ -22,6 +23,7 @@ struct SpaceSwitcher: View {
         if host.isPrivateSession {
             // A private window has one list of tabs: no Spaces to switch or create.
             HStack(spacing: 4) {
+                leading
                 Spacer()
                 accessory
                 Button {
@@ -39,7 +41,19 @@ struct SpaceSwitcher: View {
         }
     }
 
+    /// As in Arc: Downloads at the left, the Spaces in the middle, + at the right.
     private var spaces: some View {
+        HStack(spacing: 4) {
+            leading
+            Spacer(minLength: 4)
+            spaceIcons
+            Spacer(minLength: 4)
+            accessory
+            plusMenu
+        }
+    }
+
+    private var spaceIcons: some View {
         HStack(spacing: 4) {
             ForEach(host.state.spaces) { space in
                 Button {
@@ -59,8 +73,11 @@ struct SpaceSwitcher: View {
                 .draggable(SpaceDrag.payload(space.id))
                 .dropDestination(for: String.self) { items, _ in SpaceDrag.drop(items, on: space.id, host: host) }
             }
-            Spacer()
-            accessory
+        }
+    }
+
+    private var plusMenu: some View {
+        Group {
             Menu {
                 Button("New Space…") { host.newSpace() }
                 Button("New Folder") { host.send(.space(.createFolder(title: "New Folder"))) }
@@ -70,6 +87,7 @@ struct SpaceSwitcher: View {
                 Image(systemName: "plus")
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)  // a plain +, as in Arc
             .fixedSize()
             .help("New Space, folder or import")
             .accessibilityLabel("New Space, folder or import")

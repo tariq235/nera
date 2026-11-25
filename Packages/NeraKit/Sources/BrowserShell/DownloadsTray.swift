@@ -1,17 +1,21 @@
 // This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0. If a copy of the MPL was
 // not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import DesignSystem
 import EngineKit
 import PageLifecycle
 import SwiftUI
 
 #if os(macOS)
     import AppKit
+    import QuickLookThumbnailing
 #endif
 
-/// The sidebar's Downloads button: shows overall progress while files download and opens the tray.
+/// The button at the left of the sidebar's bottom bar, as in Arc: opens the downloads shelf, and rings with
+/// progress while files download.
 struct DownloadsButton: View {
     @Bindable var model: AppModel
+    @State private var isHovering = false
 
     private var active: [DownloadItem] { model.pages.downloads.filter(\.isActive) }
 
@@ -22,155 +26,120 @@ struct DownloadsButton: View {
     }
 
     var body: some View {
-        Group {
-            if !model.pages.downloads.isEmpty { button }
-        }
-        // Like Chrome's download bubble: a new download opens the tray once, so the user sees it started.
-        .onChange(of: model.pages.downloads.last?.id) { _, newest in
-            if newest != nil, model.pages.downloads.last?.isActive == true { model.isDownloadsTrayPresented = true }
-        }
-    }
-
-    private var button: some View {
-        Group {
-            Button {
-                model.isDownloadsTrayPresented.toggle()
-            } label: {
-                ZStack {
-                    if !active.isEmpty {
-                        Circle().stroke(.primary.opacity(0.15), lineWidth: 2)
-                        Circle()
-                            .trim(from: 0, to: progress ?? 0.25)
-                            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                            .rotationEffect(.degrees(-90))
-                    }
-                    Image(systemName: "arrow.down").font(.caption.weight(.bold))
-                    if model.hasUnseenFinishedDownload {
-                        Circle().fill(Color.accentColor).frame(width: 6, height: 6).offset(x: 8, y: -8)
-                    }
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { model.isDownloadsTrayPresented.toggle() }
+        } label: {
+            ZStack {
+                if !active.isEmpty {
+                    Circle().stroke(.primary.opacity(0.15), lineWidth: 2).frame(width: 20, height: 20)
+                    Circle()
+                        .trim(from: 0, to: progress ?? 0.25)
+                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 20, height: 20)
                 }
-                .frame(width: 20, height: 20)
-                .contentShape(Rectangle())
+                Image(systemName: "archivebox").font(.system(size: 14, weight: .medium))
+                if model.hasUnseenFinishedDownload {
+                    Circle().fill(Color.accentColor).frame(width: 6, height: 6).offset(x: 9, y: -8)
+                }
             }
-            .buttonStyle(.plain)
-            .help("Downloads (⌥⌘L)")
-            .accessibilityLabel(active.isEmpty ? "Downloads" : "Downloads, \(active.count) in progress")
-            .accessibilityIdentifier("downloads.button")
-            .popover(isPresented: $model.isDownloadsTrayPresented, arrowEdge: .top) {
-                DownloadsTray(model: model)
-            }
+            .foregroundStyle(.primary.opacity(model.isDownloadsTrayPresented ? 0.9 : 0.6))
+            .frame(width: 32, height: 28)
+            .contentShape(Rectangle())
+            .surface(model.isDownloadsTrayPresented ? .selected : (isHovering ? .hover : nil), cornerRadius: 7)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help("Downloads (⌥⌘L)")
+        .accessibilityLabel(active.isEmpty ? "Downloads" : "Downloads, \(active.count) in progress")
+        .accessibilityIdentifier("downloads.button")
+        // A new download opens the shelf once, so you see it start.
+        .onChange(of: model.pages.downloads.last?.id) { _, newest in
+            guard newest != nil, model.pages.downloads.last?.isActive == true else { return }
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { model.isDownloadsTrayPresented = true }
         }
     }
 }
 
-/// The list of this session's downloads, newest first, with Cancel, Retry and Show in Finder.
+/// Arc's downloads shelf, above the bottom bar: the latest files in the Downloads folder and the ones downloading
+/// now, newest at the bottom (next to the button). Click a file to open it; drag it anywhere.
 struct DownloadsTray: View {
     @Bindable var model: AppModel
+    @State private var files: [DownloadedFile] = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Downloads").font(.headline)
-                Spacer()
-                Button("Clear") { model.pages.clearInactiveDownloads() }
-                    .buttonStyle(.borderless)
-                    .disabled(!model.pages.downloads.contains { !$0.isActive })
-                    .accessibilityIdentifier("downloads.clear")
+        VStack(spacing: 2) {
+            if files.isEmpty && active.isEmpty {
+                Text("No downloads").font(.system(size: 13)).foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.vertical, 14)
             }
-            .padding(12)
-            Divider()
-            if model.pages.downloads.isEmpty {
-                Text("No downloads").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(24)
-            } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(model.pages.downloads.reversed()) { item in
-                            DownloadRow(model: model, item: item)
-                            Divider()
-                        }
-                    }
-                }
-                .frame(maxHeight: 360)
-            }
+            ForEach(files) { file in FileRow(model: model, file: file, clearAll: clearAll) }
+            ForEach(active) { item in ActiveRow(model: model, item: item) }
         }
-        .frame(width: 340)
-        .onAppear { model.hasUnseenFinishedDownload = false }
+        .padding(.vertical, 4)
+        .onAppear {
+            model.hasUnseenFinishedDownload = false
+            refresh()
+        }
+        .onChange(of: model.pages.downloads.map(\.isActive)) { refresh() }
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Downloads")
         .accessibilityIdentifier("downloads.tray")
     }
-}
 
-struct DownloadRow: View {
-    let model: AppModel
-    let item: DownloadItem
+    private var active: [DownloadItem] { model.pages.downloads.filter { $0.isActive || $0.canRetry } }
 
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon).font(.title3).foregroundStyle(iconStyle).frame(width: 24)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.filename).lineLimit(1).truncationMode(.middle)
-                if item.isActive {
-                    if let fraction = item.fractionCompleted {
-                        ProgressView(value: fraction)
-                    } else {
-                        ProgressView().progressViewStyle(.linear)
-                    }
-                }
-                Text(DownloadText.status(item)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            actions
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("downloads.row")
+    private func refresh() {
+        let cleared = UserDefaults.standard.object(forKey: DownloadedFile.clearedKey) as? Date ?? .distantPast
+        files = DownloadedFile.recent(in: model.downloadsDirectory, after: cleared)
     }
 
-    @ViewBuilder private var actions: some View {
-        if item.isActive {
-            iconButton("xmark.circle.fill", label: "Cancel \(item.filename)", id: "downloads.cancel") {
-                model.pages.cancelDownload(item.id)
-            }
-        } else if item.canRetry {
-            iconButton("arrow.clockwise", label: "Retry \(item.filename)", id: "downloads.retry") { model.pages.retryDownload(item.id) }
-        } else if item.fileURL != nil {
-            iconButton("magnifyingglass", label: "Show \(item.filename) in Finder", id: "downloads.reveal") { model.revealDownload(item) }
-        }
-        iconButton("minus.circle", label: "Remove \(item.filename) from the list", id: "downloads.remove") {
-            model.pages.dismissDownload(item.id)
-        }
-        .opacity(item.isActive ? 0 : 1)
-        .disabled(item.isActive)
-    }
-
-    private func iconButton(_ symbol: String, label: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol) }
-            .buttonStyle(.borderless)
-            .help(label)
-            .accessibilityLabel(label)
-            .accessibilityIdentifier(id)
-    }
-
-    private var icon: String {
-        switch item.state {
-        case .finished?: "doc.fill"
-        case .failed?: "exclamationmark.triangle.fill"
-        case .cancelled?: "xmark.circle"
-        default: "arrow.down.circle"
-        }
-    }
-
-    private var iconStyle: Color {
-        switch item.state {
-        case .failed?: .orange
-        case .finished?: .accentColor
-        default: .secondary
-        }
+    /// Hides everything listed now (the files stay in the Downloads folder).
+    private func clearAll() {
+        UserDefaults.standard.set(Date(), forKey: DownloadedFile.clearedKey)
+        model.pages.clearInactiveDownloads()
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { refresh() }
     }
 }
 
-/// User-facing status lines (pure; unit-tested).
+/// A file in the Downloads folder, for the shelf.
+struct DownloadedFile: Identifiable, Equatable {
+    let url: URL
+    let added: Date
+    var id: URL { url }
+
+    /// When the shelf was last cleared (files added before then aren't listed).
+    static let clearedKey = "downloadsShelfClearedAt"
+    /// How many files the shelf lists.
+    static let limit = 5
+
+    /// The newest files in `directory` (by when they arrived there), oldest first. Hidden files and downloads
+    /// still in progress are left out.
+    static func recent(in directory: URL?, after cleared: Date, limit: Int = Self.limit) -> [DownloadedFile] {
+        guard let directory else { return [] }
+        let keys: [URLResourceKey] = [.addedToDirectoryDateKey, .contentModificationDateKey, .isHiddenKey]
+        let urls =
+            (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys, options: [.skipsHiddenFiles]))
+            ?? []
+        let partial: Set<String> = ["crdownload", "download", "part", "partial"]
+        let files = urls.compactMap { url -> DownloadedFile? in
+            guard !partial.contains(url.pathExtension.lowercased()),
+                let values = try? url.resourceValues(forKeys: Set(keys)), values.isHidden != true,
+                let added = values.addedToDirectoryDate ?? values.contentModificationDate, added > cleared
+            else { return nil }
+            return DownloadedFile(url: url, added: added)
+        }
+        return Array(files.sorted { $0.added > $1.added }.prefix(limit).reversed())
+    }
+}
+
+/// "5 minutes ago", "1 week ago".
 enum DownloadText {
+    static func ago(_ date: Date, now: Date = Date()) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return now.timeIntervalSince(date) < 60 ? "Just now" : formatter.localizedString(for: date, relativeTo: now)
+    }
+
     static func status(_ item: DownloadItem) -> String {
         switch item.state {
         case nil: return "Starting…"
@@ -183,4 +152,122 @@ enum DownloadText {
     }
 
     static func size(_ bytes: Int64) -> String { ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) }
+}
+
+/// One file on the shelf: its preview, name and when it arrived.
+private struct FileRow: View {
+    let model: AppModel
+    let file: DownloadedFile
+    let clearAll: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            #if os(macOS)
+                NSWorkspace.shared.open(file.url)  // the user's click; Gatekeeper checks quarantined files
+            #endif
+        } label: {
+            HStack(spacing: 12) {
+                FileThumbnail(url: file.url).frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(file.url.lastPathComponent).font(.system(size: 14)).lineLimit(1).truncationMode(.tail)
+                    Text(DownloadText.ago(file.added)).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6).padding(.vertical, 5)
+            .contentShape(Rectangle())
+            .surface(isHovering ? .hover : nil)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .draggable(file.url)
+        .contextMenu {
+            Button("Open") {
+                #if os(macOS)
+                    NSWorkspace.shared.open(file.url)
+                #endif
+            }
+            Button("Show in Finder") {
+                #if os(macOS)
+                    NSWorkspace.shared.activateFileViewerSelecting([file.url])
+                #endif
+            }
+            Divider()
+            Button("Clear All", action: clearAll).accessibilityIdentifier("downloads.clear")
+        }
+        .accessibilityLabel("\(file.url.lastPathComponent), \(DownloadText.ago(file.added))")
+        .accessibilityHint("Opens the file")
+        .accessibilityAction(named: "Show in Finder") {
+            #if os(macOS)
+                NSWorkspace.shared.activateFileViewerSelecting([file.url])
+            #endif
+        }
+        .accessibilityIdentifier("downloads.file")
+    }
+}
+
+/// A download in progress (or one that failed): its name, progress and Cancel or Retry.
+private struct ActiveRow: View {
+    let model: AppModel
+    let item: DownloadItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: item.canRetry ? "exclamationmark.triangle.fill" : "arrow.down.circle")
+                .font(.system(size: 22)).foregroundStyle(item.canRetry ? Color.orange : .secondary).frame(width: 40, height: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.filename).font(.system(size: 14)).lineLimit(1).truncationMode(.middle)
+                if item.isActive {
+                    ProgressView(value: item.fractionCompleted ?? 0).controlSize(.small)
+                }
+                Text(DownloadText.status(item)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Button {
+                if item.isActive { model.pages.cancelDownload(item.id) } else { model.pages.retryDownload(item.id) }
+            } label: {
+                Image(systemName: item.isActive ? "xmark.circle.fill" : "arrow.clockwise")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help(item.isActive ? "Cancel" : "Retry")
+            .accessibilityLabel(item.isActive ? "Cancel \(item.filename)" : "Retry \(item.filename)")
+            .accessibilityIdentifier(item.isActive ? "downloads.cancel" : "downloads.retry")
+        }
+        .padding(.horizontal, 6).padding(.vertical, 5)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("downloads.row")
+    }
+}
+
+/// A file's Finder preview (a photo, a page of a document, the app's icon for the rest).
+private struct FileThumbnail: View {
+    let url: URL
+    @State private var image: Image?
+
+    var body: some View {
+        Group {
+            if let image {
+                image.resizable().scaledToFit()
+            } else {
+                #if os(macOS)
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().scaledToFit()
+                #else
+                    Image(systemName: "doc")
+                #endif
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .accessibilityHidden(true)
+        .task(id: url) {
+            #if os(macOS)
+                let request = QLThumbnailGenerator.Request(
+                    fileAt: url, size: CGSize(width: 40, height: 40), scale: 2, representationTypes: .thumbnail)
+                if let thumb = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request) {
+                    image = Image(nsImage: thumb.nsImage)
+                }
+            #endif
+        }
+    }
 }

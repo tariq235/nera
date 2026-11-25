@@ -122,8 +122,14 @@ public struct BrowserCommands: Commands {
                 .leftArrow, modifiers: [.command, .option])
             Divider()
             ForEach(Array(model.state.spaces.prefix(9).enumerated()), id: \.element.id) { index, space in
-                Button(space.title) { model.send(.space(.select(space.id))) }
-                    .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.control])
+                // The Space you're in has a checkmark, as in Arc.
+                Toggle(
+                    space.title,
+                    isOn: Binding(
+                        get: { model.state.selectedSpaceID == space.id },
+                        set: { _ in model.send(.space(.select(space.id))) })
+                )
+                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: [.control])
             }
         }
         #if os(macOS)

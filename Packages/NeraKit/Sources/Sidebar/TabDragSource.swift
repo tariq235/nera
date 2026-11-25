@@ -14,6 +14,8 @@
         let buttons: CGFloat
         let select: () -> Void
         let dropOutside: (CGPoint) -> Void
+        /// Called with true when the drag starts and false when it ends.
+        var onDrag: (Bool) -> Void = { _ in }
 
         func makeNSView(context: Context) -> Source { Source() }
 
@@ -22,6 +24,7 @@
             view.buttons = buttons
             view.select = select
             view.dropOutside = dropOutside
+            view.onDrag = onDrag
         }
 
         final class Source: NSView, NSDraggingSource {
@@ -29,6 +32,7 @@
             var buttons: CGFloat = 0
             var select: () -> Void = {}
             var dropOutside: (CGPoint) -> Void = { _ in }
+            var onDrag: (Bool) -> Void = { _ in }
             private var downAt: NSPoint?
             private var dragged = false
 
@@ -58,6 +62,7 @@
                 dragging.setDraggingFrame(bounds, contents: snapshot())
                 let session = beginDraggingSession(with: [dragging], event: event, source: self)
                 session.animatesToStartingPositionsOnCancelOrFail = false
+                onDrag(true)
             }
 
             override func mouseUp(with event: NSEvent) {
@@ -71,6 +76,7 @@
 
             func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
                 downAt = nil
+                onDrag(false)
                 guard operation.isEmpty else { return }  // something in Nera took it
                 let overNera = NSApp.windows.contains { $0.isVisible && $0.frame.contains(screenPoint) }
                 if !overNera { dropOutside(screenPoint) }

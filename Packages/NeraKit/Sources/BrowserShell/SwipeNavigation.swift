@@ -58,7 +58,7 @@ import SwiftUI
             /// Distance (points) a page swipe needs before letting go navigates.
             static let pageThreshold: CGFloat = 150
             /// Distance a sidebar swipe needs before letting go switches Space.
-            static let spaceThreshold: CGFloat = 70
+            static let spaceThreshold: CGFloat = 50
 
             init(model: AppModel, sidebarWidth: CGFloat?) {
                 self.model = model
@@ -144,7 +144,7 @@ import SwiftUI
                     let drag = model.spaceSwipeOffset
                     let next = drag < 0 ? index + 1 : index - 1
                     // One spring from where the fingers let go: the Spaces glide on (or back) without a jump.
-                    withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {  // as quick as Arc's
                         model.spaceSwipeOffset = 0
                         if !cancelled, abs(drag) > Self.spaceThreshold, ids.indices.contains(next) {
                             model.send(.space(.select(ids[next])))

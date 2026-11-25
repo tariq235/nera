@@ -39,6 +39,8 @@ public final class AppModel: SidebarHost, CommandBarHost {
     public var commandBarDisposition: TabAction.Disposition = .newTab
     /// Whether the sidebar is shown (macOS).
     public var isSidebarVisible = true
+    /// The tab being dragged from the sidebar: while it's set, the page shows where a drop would put it in Split View.
+    public var draggingTabID: UUID?
     /// The Downloads tray is open (⌥⌘L, or the sidebar's Downloads button).
     public var isDownloadsTrayPresented = false
     /// A private window: memory-only library, one ephemeral session, no history or icon cache on disk.

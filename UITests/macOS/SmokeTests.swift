@@ -82,15 +82,16 @@ final class SmokeTests: NeraUITestCase {
         try app.performAccessibilityAudit(for: Self.auditTypes, ignoreSystemChrome)
     }
 
-    /// a download appears in the tray (opened automatically), finishes, and can be cleared.
+    /// A download appears on the downloads shelf (opened automatically), finishes, and can be cleared.
     func testDownloadAppearsInTrayAndCanBeCleared() {
         openViaCommandBar("data:application/octet-stream;base64,THVtZW4gZG93bmxvYWQ=")
         let tray = app.descendants(matching: .any)["downloads.tray"]
         XCTAssertTrue(tray.waitForExistence(timeout: 15), "the tray didn't open for a new download")
-        let reveal = app.descendants(matching: .any).matching(identifier: "downloads.reveal").firstMatch
-        XCTAssertTrue(reveal.waitForExistence(timeout: 15), "the download never finished")
-        app.descendants(matching: .any)["downloads.clear"].firstMatch.click()
-        XCTAssertTrue(reveal.waitForNonExistence(timeout: 5), "Clear kept the finished download")
+        let file = app.descendants(matching: .any).matching(identifier: "downloads.file").firstMatch
+        XCTAssertTrue(file.waitForExistence(timeout: 15), "the download never finished")
+        file.rightClick()
+        app.menuItems["Clear All"].click()
+        XCTAssertTrue(file.waitForNonExistence(timeout: 5), "Clear All kept the finished download")
     }
 
     /// Settings → Site Settings can block a permission for every site.

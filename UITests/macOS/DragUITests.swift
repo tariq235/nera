@@ -76,3 +76,36 @@ extension DragUITests {
         XCTAssertTrue(sidebarTab("Stay Here").exists)
     }
 }
+
+extension DragUITests {
+    /// As in Arc: a sidebar tab dropped on the left half of the page shows beside it in Split View, on the left.
+    func testATabDroppedOnThePageOpensSplitView() {
+        openViaCommandBar("data:text/html,<title>Goes Left</title>")
+        let row = sidebarTab("Goes Left")
+        XCTAssertTrue(row.waitForExistence(timeout: 15))
+        openViaCommandBar("data:text/html,<title>Stays Right</title>")
+        XCTAssertTrue(sidebarTab("Stays Right").waitForExistence(timeout: 15))
+        let window = app.windows.firstMatch
+        let sidebarEdge = row.frame.maxX - window.frame.minX
+        let pageLeftQuarter = (sidebarEdge + (window.frame.width - sidebarEdge) * 0.25) / window.frame.width
+        let target = window.coordinate(withNormalizedOffset: CGVector(dx: pageLeftQuarter, dy: 0.5))
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).press(forDuration: 0.6, thenDragTo: target)
+        let panes = app.descendants(matching: .any).matching(identifier: "split.pane")
+        waitUntil("the drop didn't open Split View") { panes.count == 2 }
+        waitUntil("the dropped tab isn't on the left") { panes.element(boundBy: 0).frame.minX < panes.element(boundBy: 1).frame.minX }
+        XCTAssertTrue(app.windows.count == 1, "the drop must not open a window")
+    }
+
+    /// As in Arc: dragging the sidebar's edge well past its narrowest hides the sidebar.
+    func testDraggingTheSidebarEdgeFarLeftHidesIt() {
+        let handle = app.descendants(matching: .any)["sidebar.resizeHandle"]
+        XCTAssertTrue(handle.waitForExistence(timeout: 10))
+        let address = app.descendants(matching: .any)["sidebar.address"]
+        XCTAssertTrue(address.exists)
+        let start = handle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.3, thenDragTo: start.withOffset(CGVector(dx: -220, dy: 0)))
+        waitUntil("the sidebar didn't hide") { !address.exists || !address.isHittable }
+        app.typeKey("s", modifierFlags: .command)  // ⌘S brings it back at the width it had
+        waitUntil("the sidebar didn't come back") { address.exists && address.isHittable }
+    }
+}

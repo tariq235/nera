@@ -12,6 +12,7 @@ public struct SidebarView: View {
     let accessory: AnyView
     let siteInfo: (() -> AnyView)?
     let nowPlaying: AnyView
+    let leadingAccessory: AnyView
 
     /// Creates the sidebar for a host (normally the app model).
     /// - Parameters:
@@ -19,14 +20,16 @@ public struct SidebarView: View {
     ///   - accessory: Sits in the bottom bar, next to the Space switcher's "+" menu (the Downloads button).
     ///   - siteInfo: Content of the popover behind the address pill's site button (connection and permissions).
     ///   - nowPlaying: Sits above the bottom bar (the mini player of a tab playing in the background).
+    ///   - leadingAccessory: The bottom bar's first button (Downloads, as in Arc).
     public init(
         host: any SidebarHost, accessory: AnyView = AnyView(EmptyView()), siteInfo: (() -> AnyView)? = nil,
-        nowPlaying: AnyView = AnyView(EmptyView())
+        nowPlaying: AnyView = AnyView(EmptyView()), leadingAccessory: AnyView = AnyView(EmptyView())
     ) {
         self.host = host
         self.accessory = accessory
         self.siteInfo = siteInfo
         self.nowPlaying = nowPlaying
+        self.leadingAccessory = leadingAccessory
     }
 
     private var space: Space? { host.state.selectedSpace }
@@ -59,7 +62,7 @@ public struct SidebarView: View {
                     }
                 }
                 .offset(x: -index * (width + Self.pageGap) + host.spaceSwipeOffset)
-                .animation(.spring(response: 0.44, dampingFraction: 0.9), value: index)
+                .animation(.spring(response: 0.3, dampingFraction: 0.9), value: index)
             }
             .clipped()
             // Keyboard (A11Y-004): ↑/↓ move between tabs, Return goes into the page, Space opens or closes the
@@ -80,7 +83,7 @@ public struct SidebarView: View {
             .accessibilityLabel("Tabs")
             .accessibilityHint("Use the up and down arrow keys to move between tabs.")
             nowPlaying
-            SpaceSwitcher(host: host, accessory: accessory)
+            SpaceSwitcher(host: host, accessory: accessory, leading: leadingAccessory)
         }
         .padding(.horizontal, 10)
         .padding(.top, Metrics.topBarInset)  // lines the top bar up with the window's buttons
@@ -261,10 +264,13 @@ struct SpaceHeader: View {
         }
         // Readable on every Space color (WCAG 4.5:1 on the lightest), still quieter than the tabs below.
         .foregroundStyle(.primary.opacity(0.7))
-        .padding(.horizontal, 8).padding(.top, Metrics.headerTop)
+        .padding(.horizontal, 8).padding(.vertical, Metrics.headerHoverInset)
         .contentShape(Rectangle())
+        // As in Arc: a faint highlight centered on the name while the pointer is on it.
         .background(isHovering ? Color.primary.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .onHover { isHovering = $0 }
+        .padding(.top, Metrics.headerTop - Metrics.headerHoverInset)
+        .padding(.bottom, -Metrics.headerHoverInset)
         .onTapGesture(count: 2) { host.editSpace(space.id) }
         .onTapGesture {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { host.send(.space(.togglePinnedSection(space.id))) }
@@ -424,10 +430,14 @@ struct TabRow: View {
             .overlay(
                 TabDragSource(
                     tabID: tab.id, buttons: trailingButtonsWidth, select: { host.send(.tab(.select(tab.id))) },
-                    dropOutside: { host.openInNewWindow(tab.id, at: $0) })
+                    dropOutside: { host.openInNewWindow(tab.id, at: $0) },
+                    onDrag: { [host] isDragging in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) { host.draggingTabID = isDragging ? tab.id : nil }
+                    })
             )
         #endif
         .onHover { isHovering = $0 }
+        .opacity(host.draggingTabID == tab.id ? 0 : 1)  // lifted: it travels with the pointer
         .contextMenu {
             TabMenu(
                 host: host, tab: tab,
@@ -492,6 +502,8 @@ enum Metrics {
     static let sectionGap: CGFloat = 9
     /// Above the Space's name.
     static let headerTop: CGFloat = 10
+    /// The Space name's hover highlight reaches this far above and below it.
+    static let headerHoverInset: CGFloat = 7
     /// The Space's name to its first tab.
     static let headerToTabs: CGFloat = 19
     /// A tab row's height, and the gap between rows.
@@ -546,16 +558,23 @@ func handleFavoriteDrop(_ items: [String], on host: any SidebarHost, before targ
     return handled
 }
 
-/// A drop target with an insertion line when something is dragged over it.
+/// A drop target. A tab dragged over it opens a gap where it would land, the rows below sliding down to make room,
+/// as in Arc; anything else (a link) shows an insertion line.
 struct DropTarget: ViewModifier {
     let host: any SidebarHost
     let destination: NodeDestination
     @State private var isTargeted = false
 
+    private var isTabDrag: Bool { host.draggingTabID != nil }
+
     func body(content: Content) -> some View {
         content
+            .padding(.top, isTargeted && isTabDrag ? Metrics.rowHeight + Metrics.rowGap : 0)
+            .animation(.spring(response: 0.28, dampingFraction: 0.86), value: isTargeted)
             .overlay(alignment: .top) {
-                if isTargeted { Capsule().fill(Color.accentColor).frame(height: 2).padding(.horizontal, 4).allowsHitTesting(false) }
+                if isTargeted, !isTabDrag {
+                    Capsule().fill(Color.accentColor).frame(height: 2).padding(.horizontal, 4).allowsHitTesting(false)
+                }
             }
             .dropDestination(for: String.self) { items, _ in
                 handleSidebarDrop(items, on: host, to: destination)
